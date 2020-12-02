@@ -2,8 +2,6 @@ package accounting_test
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"testing"
@@ -37,6 +35,7 @@ type Environment struct {
 	api eos.API
 
 	DAO           eos.AccountName
+	Accounting    eos.AccountName
 	HusdToken     eos.AccountName
 	HyphaToken    eos.AccountName
 	HvoiceToken   eos.AccountName
@@ -110,8 +109,8 @@ func SetupEnvironment(t *testing.T) *Environment {
 	devHome = "/src"
 
 	accountingHome = devHome + "/develop/accounting-contracts"
-	accountingWasm = accountingHome + "/build/accounting.wasm"
-	accountingAbi = accountingHome + "/build/accounting.abi"
+	accountingWasm = accountingHome + "/build/accounting/accounting.wasm"
+	accountingAbi = accountingHome + "/build/accounting/accounting.abi"
 
 	daoHome = devHome + "/develop/eosio-contracts"
 	daoWasm = daoHome + "/build/hyphadao/hyphadao.wasm"
@@ -159,6 +158,9 @@ func SetupEnvironment(t *testing.T) *Environment {
 	env.NumPeriods = 10
 
 	var bankKey ecc.PublicKey
+
+	env.Accounting, _ = eostest.CreateAccountFromString(env.ctx, &env.api, "accounting", eostest.DefaultKey())
+
 	env.DAO, _ = eostest.CreateAccountFromString(env.ctx, &env.api, "dao.hypha", eostest.DefaultKey())
 	bankKey, env.Bank, _ = eostest.CreateAccountWithRandomKey(env.ctx, &env.api, "bank.hypha")
 
@@ -202,15 +204,18 @@ func SetupEnvironment(t *testing.T) *Environment {
 
 	_, env.TelosDecide, _ = eostest.CreateAccountWithRandomKey(env.ctx, &env.api, "telos.decide")
 
-	t.Log("Deploying DAO contract to 		: ", env.DAO)
-	setCodeActions, err := system.NewSetCode(env.DAO, daoWasm)
-	_, err = eostest.ExecTrx(env.ctx, &env.api, []*eos.Action{setCodeActions})
-	assert.NilError(t, err)
+	// t.Log("Deploying DAO contract to 		: ", env.DAO)
+	// setCodeActions, err := system.NewSetCode(env.DAO, daoWasm)
+	// _, err = eostest.ExecTrx(env.ctx, &env.api, []*eos.Action{setCodeActions})
+	// assert.NilError(t, err)
 
-	setAbiActions, err := system.NewSetABI(env.DAO, daoAbi)
-	_, err = eostest.ExecTrx(env.ctx, &env.api, []*eos.Action{setAbiActions})
-	assert.NilError(t, err)
+	// setAbiActions, err := system.NewSetABI(env.DAO, daoAbi)
+	// _, err = eostest.ExecTrx(env.ctx, &env.api, []*eos.Action{setAbiActions})
+	// assert.NilError(t, err)
 
+	t.Log("Deploying Accounting contract to 		: ", env.Accounting)
+	_, err = eostest.SetContract(env.ctx, &env.api, env.Accounting, accountingWasm, accountingAbi)
+	assert.NilError(t, err)
 	// _, err = eostest.SetContract(env.ctx, &env.api, env.DAO, daoWasm, daoAbi)
 	// assert.NilError(t, err)
 
@@ -222,22 +227,22 @@ func SetupEnvironment(t *testing.T) *Environment {
 	_, err = eostest.SetContract(env.ctx, &env.api, env.SeedsEscrow, escrowWasm, escrowAbi)
 	assert.NilError(t, err)
 
-	t.Log("Deploying SeedsExchange contract to 		: ", env.SeedsExchange)
-	_, err = eostest.SetContract(env.ctx, &env.api, env.SeedsExchange, exchangeWasm, exchangeAbi)
-	assert.NilError(t, err)
-	loadSeedsTablesFromProd(t, &env, "https://api.telos.kitchen")
+	// t.Log("Deploying SeedsExchange contract to 		: ", env.SeedsExchange)
+	// _, err = eostest.SetContract(env.ctx, &env.api, env.SeedsExchange, exchangeWasm, exchangeAbi)
+	// assert.NilError(t, err)
+	//loadSeedsTablesFromProd(t, &env, "https://api.telos.kitchen")
 
 	t.Log("Deploying Events contract to 		: ", env.Events)
 	_, err = eostest.SetContract(env.ctx, &env.api, env.Events, monitorWasm, monitorAbi)
 	assert.NilError(t, err)
 
-	_, err = dao.CreateRoot(env.ctx, &env.api, env.DAO)
-	assert.NilError(t, err)
-	//This no longer works since CreateRoot also creates the settings document
-	//env.Root, err = docgraph.GetLastDocument(env.ctx, &env.api, env.DAO)
-	rootHash := string("d4ec74355830056924c83f20ffb1a22ad0c5145a96daddf6301897a092de951e")
-	env.Root, err = docgraph.LoadDocument(env.ctx, &env.api, env.DAO, rootHash)
-	assert.NilError(t, err)
+	// _, err = dao.CreateRoot(env.ctx, &env.api, env.DAO)
+	// assert.NilError(t, err)
+	// //This no longer works since CreateRoot also creates the settings document
+	// //env.Root, err = docgraph.GetLastDocument(env.ctx, &env.api, env.DAO)
+	// rootHash := string("d4ec74355830056924c83f20ffb1a22ad0c5145a96daddf6301897a092de951e")
+	// env.Root, err = docgraph.LoadDocument(env.ctx, &env.api, env.DAO, rootHash)
+	// assert.NilError(t, err)
 
 	husdMaxSupply, _ := eos.NewAssetFromString("1000000000.00 HUSD")
 	_, err = eostest.DeployAndCreateToken(env.ctx, t, &env.api, tokenHome, env.HusdToken, env.Bank, husdMaxSupply)
@@ -258,27 +263,27 @@ func SetupEnvironment(t *testing.T) *Environment {
 	_, err = dao.Issue(env.ctx, &env.api, env.SeedsToken, env.DAO, seedsMaxSupply)
 	assert.NilError(t, err)
 
-	t.Log("Setting configuration options on DAO 		: ", env.DAO)
-	_, err = dao.SetIntSetting(env.ctx, &env.api, env.DAO, "voting_duration_sec", env.VotingDurationSeconds)
-	assert.NilError(t, err)
+	// t.Log("Setting configuration options on DAO 		: ", env.DAO)
+	// _, err = dao.SetIntSetting(env.ctx, &env.api, env.DAO, "voting_duration_sec", env.VotingDurationSeconds)
+	// assert.NilError(t, err)
 
-	_, err = dao.SetIntSetting(env.ctx, &env.api, env.DAO, "seeds_deferral_factor_x100", env.SeedsDeferralFactor)
-	assert.NilError(t, err)
+	// _, err = dao.SetIntSetting(env.ctx, &env.api, env.DAO, "seeds_deferral_factor_x100", env.SeedsDeferralFactor)
+	// assert.NilError(t, err)
 
-	_, err = dao.SetIntSetting(env.ctx, &env.api, env.DAO, "hypha_deferral_factor_x100", env.HyphaDeferralFactor)
-	assert.NilError(t, err)
+	// _, err = dao.SetIntSetting(env.ctx, &env.api, env.DAO, "hypha_deferral_factor_x100", env.HyphaDeferralFactor)
+	// assert.NilError(t, err)
 
-	_, err = dao.SetIntSetting(env.ctx, &env.api, env.DAO, "paused", 0)
-	assert.NilError(t, err)
+	// _, err = dao.SetIntSetting(env.ctx, &env.api, env.DAO, "paused", 0)
+	// assert.NilError(t, err)
 
-	dao.SetNameSetting(env.ctx, &env.api, env.DAO, "hypha_token_contract", env.HyphaToken)
-	dao.SetNameSetting(env.ctx, &env.api, env.DAO, "hvoice_token_contract", env.HvoiceToken)
-	dao.SetNameSetting(env.ctx, &env.api, env.DAO, "husd_token_contract", env.HusdToken)
-	dao.SetNameSetting(env.ctx, &env.api, env.DAO, "seeds_token_contract", env.SeedsToken)
-	dao.SetNameSetting(env.ctx, &env.api, env.DAO, "seeds_escrow_contract", env.SeedsEscrow)
-	dao.SetNameSetting(env.ctx, &env.api, env.DAO, "publisher_contract", env.Events)
-	dao.SetNameSetting(env.ctx, &env.api, env.DAO, "treasury_contract", env.Bank)
-	dao.SetNameSetting(env.ctx, &env.api, env.DAO, "telos_decide_contract", env.TelosDecide)
+	// dao.SetNameSetting(env.ctx, &env.api, env.DAO, "hypha_token_contract", env.HyphaToken)
+	// dao.SetNameSetting(env.ctx, &env.api, env.DAO, "hvoice_token_contract", env.HvoiceToken)
+	// dao.SetNameSetting(env.ctx, &env.api, env.DAO, "husd_token_contract", env.HusdToken)
+	// dao.SetNameSetting(env.ctx, &env.api, env.DAO, "seeds_token_contract", env.SeedsToken)
+	// dao.SetNameSetting(env.ctx, &env.api, env.DAO, "seeds_escrow_contract", env.SeedsEscrow)
+	// dao.SetNameSetting(env.ctx, &env.api, env.DAO, "publisher_contract", env.Events)
+	// dao.SetNameSetting(env.ctx, &env.api, env.DAO, "treasury_contract", env.Bank)
+	// dao.SetNameSetting(env.ctx, &env.api, env.DAO, "telos_decide_contract", env.TelosDecide)
 
 	t.Log("Adding "+strconv.Itoa(env.NumPeriods)+" periods with duration 		: ", env.PeriodDuration)
 	_, err = dao.AddPeriods(env.ctx, &env.api, env.DAO, env.NumPeriods, env.PeriodDuration)
@@ -318,21 +323,21 @@ func SetupEnvironment(t *testing.T) *Environment {
 	_, err = dao.Mint(env.ctx, &env.api, env.TelosDecide, env.DAO, env.DAO, daoTokens)
 	assert.NilError(t, err)
 
-	whaleTokens, _ := eos.NewAssetFromString("100.00 HVOICE")
-	env.Whale, err = SetupMember(t, env.ctx, &env.api, env.DAO, env.TelosDecide, "whale", whaleTokens)
-	assert.NilError(t, err)
+	//whaleTokens, _ := eos.NewAssetFromString("100.00 HVOICE")
+	// env.Whale, err = SetupMember(t, env.ctx, &env.api, env.DAO, env.TelosDecide, "whale", whaleTokens)
+	// assert.NilError(t, err)
 
-	index := 1
-	for index < 5 {
+	// index := 1
+	// for index < 5 {
 
-		memberNameIn := "member" + strconv.Itoa(index)
+	// 	memberNameIn := "member" + strconv.Itoa(index)
 
-		newMember, err := SetupMember(t, env.ctx, &env.api, env.DAO, env.TelosDecide, memberNameIn, daoTokens)
-		assert.NilError(t, err)
+	// 	newMember, err := SetupMember(t, env.ctx, &env.api, env.DAO, env.TelosDecide, memberNameIn, daoTokens)
+	// 	assert.NilError(t, err)
 
-		env.Members = append(env.Members, newMember)
-		index++
-	}
+	// 	env.Members = append(env.Members, newMember)
+	// 	index++
+	// }
 
 	return &env
 }
@@ -367,53 +372,4 @@ func SetupMember(t *testing.T, ctx context.Context, api *eos.API,
 		Member: memberAccount,
 		Doc:    memberDoc,
 	}, nil
-}
-
-func SaveGraph(ctx context.Context, api *eos.API, contract eos.AccountName, folderName string) error {
-
-	var request eos.GetTableRowsRequest
-	request.Code = string(contract)
-	request.Scope = string(contract)
-	request.Table = "documents"
-	request.Limit = 1000
-	request.JSON = true
-	response, err := api.GetTableRows(ctx, request)
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve rows: %v", err)
-	}
-
-	data, err := response.Rows.MarshalJSON()
-	if err != nil {
-		return fmt.Errorf("Unable to marshal json: %v", err)
-	}
-
-	documentsFile := folderName + "/documents.json"
-	err = ioutil.WriteFile(documentsFile, data, 0644)
-	if err != nil {
-		return fmt.Errorf("Unable to write file: %v", err)
-	}
-
-	request = eos.GetTableRowsRequest{}
-	request.Code = string(contract)
-	request.Scope = string(contract)
-	request.Table = "edges"
-	request.Limit = 1000
-	request.JSON = true
-	response, err = api.GetTableRows(ctx, request)
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve rows: %v", err)
-	}
-
-	data, err = response.Rows.MarshalJSON()
-	if err != nil {
-		return fmt.Errorf("Unable to marshal json: %v", err)
-	}
-
-	edgesFile := folderName + "/edges.json"
-	err = ioutil.WriteFile(edgesFile, data, 0644)
-	if err != nil {
-		return fmt.Errorf("Unable to write file: %v", err)
-	}
-
-	return nil
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/eoscanada/eos-go"
+	"github.com/hypha-dao/accounting-go"
 	"gotest.tools/assert"
 )
 
@@ -91,10 +92,11 @@ func setupTestCase(t *testing.T) func(t *testing.T) {
 		folderName := "test_results"
 		t.Log("Saving graph to : ", folderName)
 		os.Mkdir(folderName, 0755)
-		err := SaveGraph(env.ctx, &env.api, env.DAO, folderName)
-		assert.NilError(t, err)
+		//err := SaveGraph(env.ctx, &env.api, env.DAO, folderName)
+		//assert.NilError(t, err)
 	}
 }
+
 
 func TestHiAction(t *testing.T) {
 
@@ -110,6 +112,6 @@ func TestHiAction(t *testing.T) {
 	})
 
 	t.Run("Testing hi action", func(t *testing.T) {
-
+		accounting.SayHi(env.ctx, &env.api, env.Accounting);
 	})
 }
