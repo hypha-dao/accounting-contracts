@@ -11,6 +11,8 @@ import (
 
 	"github.com/eoscanada/eos-go"
 	"github.com/hypha-dao/accounting-go"
+	"github.com/hypha-dao/document/docgraph"
+
 	"gotest.tools/assert"
 )
 
@@ -97,8 +99,7 @@ func setupTestCase(t *testing.T) func(t *testing.T) {
 	}
 }
 
-
-func TestHiAction(t *testing.T) {
+func TestAddLedgerAction(t *testing.T) {
 
 	teardownTestCase := setupTestCase(t)
 	defer teardownTestCase(t)
@@ -111,7 +112,97 @@ func TestHiAction(t *testing.T) {
 		t.Log("\nDAO Environment Setup complete\n")
 	})
 
-	t.Run("Testing hi action", func(t *testing.T) {
-		accounting.SayHi(env.ctx, &env.api, env.Accounting);
+	t.Run("Testing AddLedger action", func(t *testing.T) {
+
+		ledger, err := StrToContentGroups(ledger_tester)
+
+		assert.NilError(t, err)
+
+		_, err = accounting.AddLedger(env.ctx,
+			&env.api,
+			env.Accounting,
+			eos.AccountName("tester"),
+			ledger)
+
+		pause(t, time.Second, "", "")
+
+		assert.NilError(t, err)
+		//accounting.SayHi(env.ctx, &env.api, env.Accounting);
+	})
+}
+
+func TestCreateAccount(t *testing.T) {
+
+	teardownTestCase := setupTestCase(t)
+	defer teardownTestCase(t)
+
+	// var env Environment
+	env = SetupEnvironment(t)
+
+	t.Run("Configuring the DAO environment: ", func(t *testing.T) {
+		t.Log(env.String())
+		t.Log("\nDAO Environment Setup complete\n")
+	})
+
+	t.Run("Testing Create action", func(t *testing.T) {
+
+		ledgerCgs, err := StrToContentGroups(ledger_tester)
+
+		assert.NilError(t, err)
+
+		_, err = accounting.AddLedger(env.ctx,
+			&env.api,
+			env.Accounting,
+			eos.AccountName("testcreate"),
+			ledgerCgs)
+
+		assert.NilError(t, err)
+
+		pause(t, time.Second, "", "")
+
+		//TODO: I need a way to get the hash with the content groups in go
+		ledgerHashStr := "545df793947527201427c136cb8c817a40c625d350a53b72c141a22e73f85e3b"
+
+		ledgerDoc, err := docgraph.LoadDocument(env.ctx,
+			&env.api,
+			env.Accounting,
+			ledgerHashStr)
+
+		assert.NilError(t, err)
+
+		accountCgs, err := StrToContentGroups(account_tester)
+
+		assert.NilError(t, err)
+
+		accountCgs[0] = append(accountCgs[0], docgraph.ContentItem{
+			Label: "parent_account",
+			Value: &docgraph.FlexValue{
+				BaseVariant: eos.BaseVariant{
+					TypeID: docgraph.GetVariants().TypeID("checksum256"),
+					Impl:   ledgerDoc.Hash,
+				}},
+		})
+
+		_, err = accounting.CreateAcct(env.ctx,
+			&env.api,
+			env.Accounting,
+			eos.AccountName("testcreate"),
+			accountCgs)
+
+		assert.NilError(t, err)
+
+		pause(t, time.Second, "", "")
+
+		_, err = accounting.CreateAcct(env.ctx,
+			&env.api,
+			env.Accounting,
+			eos.AccountName("testcreate"),
+			accountCgs)
+
+		assert.NilError(t, err)
+
+		pause(t, time.Second, "", "")
+
+		//accounting.SayHi(env.ctx, &env.api, env.Accounting);
 	})
 }

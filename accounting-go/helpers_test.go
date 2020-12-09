@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
+	"encoding/json"
 	"github.com/k0kubun/go-ansi"
+	"github.com/hypha-dao/document/docgraph"
 	progressbar "github.com/schollz/progressbar/v3"
 )
 
@@ -35,4 +36,14 @@ func pause(t *testing.T, seconds time.Duration, headline, prefix string) {
 	}
 	fmt.Println()
 	fmt.Println()
+}
+
+func StrToContentGroups(data string) ([]docgraph.ContentGroup, error) {
+	var tempDoc docgraph.Document
+	err := json.Unmarshal([]byte(data), &tempDoc)
+	if err != nil {
+		return nil, fmt.Errorf("Json unmarshal : %v", err)
+	}
+
+	return tempDoc.ContentGroups, nil
 }
