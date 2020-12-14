@@ -69,6 +69,7 @@ accounting::create(name creator, ContentGroups& account_info)
   
   parent(creator, parentHash, account.getHash());
   
+  //Process opening balances if any
   if (auto [idx, balances] = contentWrap.getGroup(OPENING_BALANCES);
       balances) {
 
@@ -92,23 +93,15 @@ accounting::create(name creator, ContentGroups& account_info)
         check(isCurrencySupported(componentAmount.symbol), 
               string("Unsupported currency: ") + componentAmount.symbol.code().to_string());
 
-        ContentGroup component {
-          Content{CONTENT_GROUP_LABEL, "Component"},
-          Content{COMPONENT_ACCOUNT, account.getHash()},
-          Content{COMPONENT_MEMO, "Opening Balance"},
-          Content{COMPONENT_AMMOUNT, componentAmount}
-        };
+        transaction.emplace_back(getTrxComponent(account.getHash(), 
+                                                 "Opening Balance",
+                                                 componentAmount));
 
         componentAmount.set_amount(-componentAmount.amount);
 
-        ContentGroup componentOB {
-          Content{CONTENT_GROUP_LABEL, "Component"},
-          Content{COMPONENT_ACCOUNT, openingBalances},
-          Content{COMPONENT_MEMO, "Opening Balance"},
-          Content{COMPONENT_AMMOUNT, componentAmount}
-        };
-
-        transaction.emplace_back(std::move(component));
+        transaction.emplace_back(getTrxComponent(openingBalances, 
+                                                 "Opening Balance",
+                                                 componentAmount));
       }
       else if (label != CONTENT_GROUP_LABEL) {
         check(false, "Wrong format for opening_balances account [" + label + "]");
@@ -205,6 +198,17 @@ accounting::getTrxHeader(string memo, time_point date, checksum256 ledger)
     Content{TRX_MEMO, std::move(memo)},
     Content{TRX_DATE, date},
     Content{TRX_LEDGER, ledger}
+  };
+}
+
+ContentGroup
+accounting::getTrxComponent(checksum256 account, string memo, asset amount)
+{
+  return {
+    Content{CONTENT_GROUP_LABEL, "Component"},
+    Content{COMPONENT_ACCOUNT, account},
+    Content{COMPONENT_MEMO, memo},
+    Content{COMPONENT_AMMOUNT, amount}
   };
 }
 

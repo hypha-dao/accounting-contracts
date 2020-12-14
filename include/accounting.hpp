@@ -65,6 +65,9 @@ CONTRACT accounting : public contract {
   checksum256
   getOpeningsHash(checksum256 parent);
 
+  ContentGroup
+  getTrxComponent(checksum256 account, string memo, asset amount);
+
   /**
   * @brief Creates a parent->child relationship with edges between accounts 
   */
