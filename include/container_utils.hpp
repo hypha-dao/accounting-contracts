@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 #include <optional>
 #include <string_view>

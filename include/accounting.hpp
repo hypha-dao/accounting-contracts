@@ -1,8 +1,12 @@
+#pragma once
+
+#include <string_view>
+#include <vector>
+
 #include <eosio/eosio.hpp>
 
 #include <document_graph/document_graph.hpp>
 #include <document_graph/content_wrapper.hpp>
-#include <vector>
 
 namespace hypha {
 
@@ -45,7 +49,6 @@ CONTRACT accounting : public contract {
   const Document& 
   getRoot() const;
 
-
   ContentGroups
   getOpeningsAccount(checksum256 parent);
 
@@ -66,13 +69,20 @@ CONTRACT accounting : public contract {
   getOpeningsHash(checksum256 parent);
 
   ContentGroup
-  getTrxComponent(checksum256 account, string memo, asset amount);
+  getTrxComponent(checksum256 account, 
+                  string memo, 
+                  asset amount, 
+                  string label = "component");
 
   /**
   * @brief Creates a parent->child relationship with edges between accounts 
   */
   void 
-  parent(name creator, checksum256 parent, checksum256 child);
+  parent(name creator, 
+         checksum256 parent, 
+         checksum256 child, 
+         string_view fromToEdge = "account", 
+         string_view toFromEdge = "ownedby");
 
   DocumentGraph m_documentGraph{get_self()};
 };

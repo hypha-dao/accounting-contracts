@@ -114,14 +114,13 @@ accounting::create(name creator, ContentGroups& account_info)
 
 /**
 * Transaction structure
-* group: header
+* label: header
 * transaction_date : time_point
 * memo: string
-* ledger: ledger checksum
 * 
 * [components]
-* group: component
-* account: account hash
+* label: component
+* account: account hash checksum256
 * memo: string
 * amount: asset
 *  
@@ -131,13 +130,26 @@ accounting::transact(name issuer, ContentGroups& trx_info)
 {
   require_auth(issuer);
 
-  //ContentWrapper trx(trx_info);
-
   Transaction trx(trx_info);
 
-  check(trx.isBalanced(), "Sum of all components in transactions doesn't add to 0");
+  trx.verifyBalanced();
 
+  Document trxDoc(get_self(), issuer, trx.getDetails());
 
+  for (auto& compnt : trx.getComponents()) {
+    Document compntAcct(get_self(), compnt.account);
+
+    Document compntDoc(get_self(), issuer, getTrxComponent(compnt.account, 
+                                                           compnt.memo, 
+                                                           compnt.amount,
+                                                           "details"));
+
+    parent(issuer, trxDoc.getHash(), compntDoc.getHash(), "component", "transaction");
+
+    Edge compntToAcc(get_self(), issuer, compntDoc.getHash(), compntAcct.getHash(), "account"_n);
+    
+    Edge::getOrNew(get_self(), issuer, compntAcct.getHash(), trxDoc.getHash(), "transaction"_n);
+  }
 }
 
 ContentGroups
@@ -202,10 +214,13 @@ accounting::getTrxHeader(string memo, time_point date, checksum256 ledger)
 }
 
 ContentGroup
-accounting::getTrxComponent(checksum256 account, string memo, asset amount)
+accounting::getTrxComponent(checksum256 account, 
+                            string memo, 
+                            asset amount, 
+                            string label)
 {
   return {
-    Content{CONTENT_GROUP_LABEL, "Component"},
+    Content{CONTENT_GROUP_LABEL, std::move(label)},
     Content{COMPONENT_ACCOUNT, account},
     Content{COMPONENT_MEMO, memo},
     Content{COMPONENT_AMMOUNT, amount}
@@ -213,10 +228,14 @@ accounting::getTrxComponent(checksum256 account, string memo, asset amount)
 }
 
 void 
-accounting::parent(name creator, checksum256 parent, checksum256 child)
+accounting::parent(name creator, 
+                   checksum256 parent, 
+                   checksum256 child, 
+                   string_view fromToEdge, 
+                   string_view toFromEdge)
 {
-  Edge(get_self(), creator, parent, child, name("account"));
-  Edge(get_self(), creator, child, parent, name("ownedby"));
+  Edge(get_self(), creator, parent, child, name(fromToEdge));
+  Edge(get_self(), creator, child, parent, name(toFromEdge));
 }
 
 const Document& 

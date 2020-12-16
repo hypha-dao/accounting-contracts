@@ -1,9 +1,13 @@
+#pragma once
+
 #include <string>
 #include <vector>
 
 #include <eosio/eosio.hpp>
 
 #include <document_graph/content_wrapper.hpp>
+
+#include "constants.hpp"
 
 namespace hypha {
 
@@ -20,7 +24,7 @@ class Transaction
   /**
   * @brief Builds a transaction object from a given ContentGroups
   */
-  Transaction(ContentGroups trxInfo);
+  Transaction(ContentGroups& trxInfo);
 
   class Component
   {
@@ -30,12 +34,31 @@ class Transaction
     string memo;
   };
 
-  bool isBalanced();
+  void
+  verifyBalanced();
+
+  inline const vector<Component>&
+  getComponents() const 
+  {
+    return m_components;
+  }
+
+  inline ContentGroup
+  getDetails() const
+  {
+    return {
+      Content{CONTENT_GROUP_LABEL, "details"},
+      Content{TRX_MEMO, m_memo},
+      Content{TRX_DATE, m_date}
+      // Content{TRX_LEDGER, m_ledger}
+    };
+  }
   
-  string memo;
-  time_point date;
-  checksum256 ledger;
-  vector<Component> components;
+ private:
+  string m_memo;
+  time_point m_date;
+  //checksum256 m_ledger;
+  vector<Component> m_components;
 };
 
 }

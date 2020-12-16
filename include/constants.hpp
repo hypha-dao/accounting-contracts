@@ -1,3 +1,4 @@
+#pragma once
 
 namespace hypha {
 
@@ -15,5 +16,18 @@ constexpr auto COMPONENT_AMMOUNT = "amount";
 constexpr auto COMPONENT_MEMO = "memo";
 constexpr auto COMPONENT_ACCOUNT = "account";
 
+inline size_t
+createID() {
+  static size_t id = 0;
+  return id++;
+}
+
+template<class T>
+size_t
+getClassID(T = T()) 
+{
+  static size_t id = createID();
+  return id;
+}
 
 }
