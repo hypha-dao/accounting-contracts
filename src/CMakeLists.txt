@@ -8,6 +8,7 @@ set (DOC_GRAPH_DIR ${CMAKE_SOURCE_DIR}/../document-graph)
 add_contract( accounting accounting 
 accounting.cpp
 transaction.cpp
+settings.cpp
 ${DOC_GRAPH_DIR}/src/document_graph/util.cpp
 ${DOC_GRAPH_DIR}/src/document_graph/content.cpp
 ${DOC_GRAPH_DIR}/src/document_graph/content_wrapper.cpp

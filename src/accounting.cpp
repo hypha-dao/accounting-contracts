@@ -6,10 +6,19 @@
 
 #include "constants.hpp"
 #include "container_utils.hpp"
+#include "settings.hpp"
 #include "table_wrapper.hpp"
 #include "transaction.hpp"
 
 namespace hypha {
+
+name accounting::g_contractName = {};
+
+accounting::accounting(name self, name first_receiver, datastream<const char*> ds)
+  : contract(self, first_receiver, ds)
+{
+  g_contractName = get_self();
+}
 
 ACTION
 accounting::addledger(name creator, ContentGroups& ledger_info)
@@ -163,6 +172,20 @@ accounting::transact(name issuer, ContentGroups& trx_info)
   }
 }
 
+ACTION
+accounting::setsetting(string setting, Content::FlexValue value)
+{
+  Settings& settings = Settings::instance();
+  settings.addOrReplace(setting, std::move(value));
+}
+
+ACTION
+accounting::remsetting(string setting)
+{
+  Settings& settings = Settings::instance();
+  settings.remove(setting);
+}
+
 ContentGroups
 accounting::getOpeningsAccount(checksum256 parent)
 {
@@ -250,14 +273,20 @@ accounting::parent(name creator,
 }
 
 const Document& 
-accounting::getRoot() const
+accounting::getRoot()
 {
   //This assumes the root document won't change
-  static Document rootDoc = Document::getOrNew(get_self(), 
-                                               get_self(),
-                                               Content(ROOT_NODE, get_self()));
+  static Document rootDoc = Document::getOrNew(getName(), 
+                                               getName(),
+                                               Content(ROOT_NODE, getName()));
   
   return rootDoc;
+}
+
+name
+accounting::getName() 
+{
+  return g_contractName;
 }
 
 bool

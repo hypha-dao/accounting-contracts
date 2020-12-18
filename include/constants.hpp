@@ -1,8 +1,13 @@
 #pragma once
 
+#include <eosio/eosio.hpp>
+
 namespace hypha {
 
+using eosio::name;
+
 constexpr auto ROOT_NODE = "root_node";
+constexpr auto DETAILS = "details";
 constexpr auto OPENING_BALANCES = "opening_balances";
 constexpr auto ACCOUNT_NAME = "account_name";
 constexpr auto LEDGER_ACCOUNT = "ledger_account";
@@ -15,6 +20,10 @@ constexpr auto TRX_LEDGER = "trx_ledger";
 constexpr auto COMPONENT_AMMOUNT = "amount";
 constexpr auto COMPONENT_MEMO = "memo";
 constexpr auto COMPONENT_ACCOUNT = "account";
+constexpr auto SETTINGS = "settings";
+constexpr auto UPDATE_DATE = "update_date";
+constexpr auto SETTINGS_DATA = "settings_data";
+constexpr auto SETTINGS_EDGE = name("settings");
 
 inline size_t
 createID() {

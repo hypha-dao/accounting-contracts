@@ -27,7 +27,9 @@ enum E
 
 CONTRACT accounting : public contract {
  public:
-  using contract::contract;
+  //using contract::contract;
+
+  accounting( name self, name first_receiver, datastream<const char*> ds );
 
   DECLARE_DOCUMENT_GRAPH(accounting)
 
@@ -43,11 +45,20 @@ CONTRACT accounting : public contract {
   ACTION
   transact(name issuer, ContentGroups& trx_info);
 
+  ACTION
+  setsetting(string setting, Content::FlexValue value);
+
+  ACTION
+  remsetting(string setting);
+  
   /**
   * Gets the root document of the graph
   */
-  const Document& 
-  getRoot() const;
+  static const Document& 
+  getRoot();
+
+  static name
+  getName();
 
   ContentGroups
   getOpeningsAccount(checksum256 parent);
@@ -85,6 +96,8 @@ CONTRACT accounting : public contract {
          string_view toFromEdge = "ownedby");
 
   DocumentGraph m_documentGraph{get_self()};
+
+  static name g_contractName;
 };
 
 }
