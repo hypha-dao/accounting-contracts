@@ -37,12 +37,18 @@ accounting::create(name creator, ContentGroups& account_info)
   require_auth(get_self());
 
   ContentWrapper contentWrap(account_info);
+
+  auto [dIdx, details] = contentWrap.getGroup("details");
+
+  check(details, "Details group was expected but not found in account info");
   
-  auto parentHash = contentWrap.getOrFail("details", PARENT_ACCOUNT)->getAs<checksum256>();
+  auto parentHash = contentWrap.getOrFail(dIdx, PARENT_ACCOUNT).second->getAs<checksum256>();
 
-  auto accountName = contentWrap.getOrFail("details", ACCOUNT_NAME)->getAs<string>();
+  auto accountType = contentWrap.getOrFail(dIdx, ACCOUNT_TYPE).second->getAs<int64_t>();
 
-  auto ledger = contentWrap.getOrFail("details", LEDGER_ACCOUNT)->getAs<checksum256>();
+  auto accountName = contentWrap.getOrFail(dIdx, ACCOUNT_NAME).second->getAs<string>();
+
+  auto ledger = contentWrap.getOrFail(dIdx, LEDGER_ACCOUNT).second->getAs<checksum256>();
   
   auto accountEdges = m_documentGraph.getEdgesFrom(parentHash, name("account"));
 
@@ -65,7 +71,12 @@ accounting::create(name creator, ContentGroups& account_info)
   }
 
   //Create the account
-  Document account(get_self(), creator, std::move(account_info));
+  Document account(get_self(), creator, ContentGroup{
+    Content{CONTENT_GROUP_LABEL, "details"},
+    Content{ACCOUNT_NAME, accountName},
+    Content{ACCOUNT_TYPE, accountType},
+    Content{PARENT_ACCOUNT, parentHash}
+  });
   
   parent(creator, parentHash, account.getHash());
   
@@ -108,7 +119,7 @@ accounting::create(name creator, ContentGroups& account_info)
       }
     }
 
-    transact(creator, transaction);
+    transact(get_self(), transaction);
   }
 }
 

@@ -17,7 +17,7 @@ Transaction::Transaction(ContentGroups& trxInfo)
   //Check all the header fields are present
   m_memo = trx.getOrFail(hIdx, TRX_MEMO).second->getAs<string>();
   m_date = trx.getOrFail(hIdx, TRX_DATE).second->getAs<time_point>();
-  //m_ledger = trx.getOrFail(hIdx, TRX_LEDGER).second->getAs<checksum256>();
+  m_ledger = trx.getOrFail(hIdx, TRX_LEDGER).second->getAs<checksum256>();
 
   //Extract the components
   for (size_t i = 0; i < trxInfo.size(); ++i) {
@@ -34,11 +34,6 @@ Transaction::Transaction(ContentGroups& trxInfo)
 
     Component component;
     
-    //If there is no ammount, then it should be implied
-    if (auto [idx, c] = trx.get(i, COMPONENT_AMMOUNT); c) {
-        component.amount = c->getAs<asset>();
-    }
-
     {
       auto [idx, c] = trx.getOrFail(i, COMPONENT_MEMO, "Missing memo content on trx component");
       component.memo = c->getAs<string>();
@@ -47,6 +42,17 @@ Transaction::Transaction(ContentGroups& trxInfo)
       auto [idx, c] = trx.getOrFail(i, COMPONENT_ACCOUNT, "Missing account content on trx component");
       component.account = c->getAs<checksum256>();
     }
+
+    //If there is no ammount, then it should be implied
+    if (auto [idx, c] = trx.get(i, COMPONENT_AMMOUNT); c) {
+        component.amount = c->getAs<asset>();
+        check(component.amount.is_valid(), "Not valid asset: " + 
+                                component.amount.to_string() + " at " + 
+                                std::to_string(i) + 
+                                " memo:" +component.memo);
+    }
+    
+
     m_components.emplace_back(std::move(component));
   }  
 }
@@ -64,8 +70,13 @@ Transaction::verifyBalanced()
   
   for (const auto& component : m_components) {
     auto& asset = component.amount;
-    auto& accum = assetsBySymb[asset.symbol.raw()];
-    accum.set_amount(accum.amount + asset.amount);
+    
+    auto [assetIt, inserted] = assetsBySymb.insert({asset.symbol.raw(), asset});  
+
+    auto& accum = assetIt->second;
+
+    //It means the asset existed already
+    if (!inserted) { accum.set_amount(accum.amount + asset.amount); }
   }
 
   std::vector<asset> nonZeroAssets;
@@ -78,7 +89,7 @@ Transaction::verifyBalanced()
       if (asset.amount != 0) { nonZeroAssets.push_back(asset); }
     }
     else { //Implied asset
-      check(!impliedAsset, "Only one component is allowed to be implied");
+      check(!impliedAsset, "Only one component is allowed to be implied: " + asset.to_string());
       impliedAsset = &asset;
     }
   }
