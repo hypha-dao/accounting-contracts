@@ -270,6 +270,8 @@ func TestTransact(t *testing.T) {
 	// var env Environment
 	env = SetupEnvironment(t)
 
+	var ledgerDoc, expensesAcc, incomeAcc, mktingAcc, salaryAcc docgraph.Document
+
 	t.Run("Configuring the DAO environment: ", func(t *testing.T) {
 		t.Log(env.String())
 		t.Log("\nDAO Environment Setup complete\n")
@@ -290,19 +292,19 @@ func TestTransact(t *testing.T) {
 
 		t.Log("Creating accounts...\n")
 
-		expensesAcc, err := CreateAccount(env, account_expenses, ledgerDoc.Hash, ledgerDoc.Hash)
+		expensesAcc, err = CreateAccount(env, account_expenses, ledgerDoc.Hash, ledgerDoc.Hash)
 
 		assert.NilError(t, err)
 
-		incomeAcc, err := CreateAccount(env, account_income, ledgerDoc.Hash, ledgerDoc.Hash)
+		incomeAcc, err = CreateAccount(env, account_income, ledgerDoc.Hash, ledgerDoc.Hash)
 
 		assert.NilError(t, err)
 
-		mktingAcc, err := CreateAccount(env, account_mkting, expensesAcc.Hash, ledgerDoc.Hash)
+		mktingAcc, err = CreateAccount(env, account_mkting, expensesAcc.Hash, ledgerDoc.Hash)
 
 		assert.NilError(t, err)
 
-		salaryAcc, err := CreateAccount(env, account_salary, incomeAcc.Hash, ledgerDoc.Hash)
+		salaryAcc, err = CreateAccount(env, account_salary, incomeAcc.Hash, ledgerDoc.Hash)
 
 		assert.NilError(t, err)
 
@@ -326,6 +328,63 @@ func TestTransact(t *testing.T) {
 			BaseVariant: eos.BaseVariant{
 				TypeID: docgraph.GetVariants().TypeID("checksum256"),
 				Impl:   salaryAcc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "trx_ledger", "trx_ledger", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   ledgerDoc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		_, err = accounting.Transact(env.ctx,
+			&env.api,
+			env.Accounting,
+			env.Accounting,
+			trxDoc.ContentGroups)
+
+		assert.NilError(t, err)
+	})
+
+	t.Run(("Testing implied transaction"), func(t *testing.T) {
+
+		t.Log("Creating food account...\n")
+
+		foodAcc, err := CreateAccount(env, account_food, expensesAcc.Hash, ledgerDoc.Hash)
+
+		assert.NilError(t, err)
+
+		trxCgs, err := StrToContentGroups(transaction_test_implied)
+
+		assert.NilError(t, err)
+
+		trxDoc := docgraph.Document{}
+		trxDoc.ContentGroups = trxCgs
+
+		err = ReplaceContent(&trxDoc, "account_a", "account",
+			&docgraph.FlexValue{
+				BaseVariant: eos.BaseVariant{
+					TypeID: docgraph.GetVariants().TypeID("checksum256"),
+					Impl:   mktingAcc.Hash,
+				}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "account_b", "account", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   foodAcc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "account_c", "account", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   incomeAcc.Hash,
 			}})
 
 		assert.NilError(t, err)

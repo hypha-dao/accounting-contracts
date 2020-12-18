@@ -50,7 +50,7 @@ class Transaction
     return {
       Content{CONTENT_GROUP_LABEL, "details"},
       Content{TRX_MEMO, m_memo},
-      Content{TRX_DATE, m_date}
+      Content{TRX_DATE, m_date},
       Content{TRX_LEDGER, m_ledger}
     };
   }

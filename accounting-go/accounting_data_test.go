@@ -113,6 +113,127 @@ const transaction_test_1 = `
 	]
 }
 `
+
+const transaction_test_implied = `
+{
+	"content_groups": 
+	[
+			[
+					{
+							"label": "content_group_label",
+							"value": [
+									"string",
+									"header"
+							]
+					},
+					{
+							"label": "trx_date",
+							"value": [
+									"time_point",
+									"2020-12-17T21:45:11.500"
+							]
+					},
+					{
+							"label": "trx_ledger",
+							"value": [
+									"string",
+									"abc"
+							]
+					},
+					{
+							"label": "trx_memo",
+							"value": [
+									"string",
+									"Test Implied Transaction"
+							]
+					}
+		 ],
+		 [
+					{
+						"label": "content_group_label",
+						"value": [
+								"string",
+								"component"
+						]
+					},
+					{
+						"label": "memo",
+						"value": [
+							"string",
+							"New marketing campain"
+						]
+					},
+					{
+						"label": "account_a",
+						"value": [
+							"string",
+							"abc"
+						]
+					},
+					{
+							"label": "amount",
+							"value": [
+									"asset",
+									"1000.00 USD"
+							]
+					}
+		 ],
+		 [
+					{
+						"label": "content_group_label",
+						"value": [
+								"string",
+								"component"
+						]
+					},
+					{
+						"label": "memo",
+						"value": [
+							"string",
+							"Restaurant"
+						]
+					},
+					{
+						"label": "account_b",
+						"value": [
+							"string",
+							"abc"
+						]
+					},
+					{
+							"label": "amount",
+							"value": [
+									"asset",
+									"2.4 BTC"
+							]
+					}
+		 ],
+		 [
+					{
+						"label": "content_group_label",
+						"value": [
+								"string",
+								"component"
+						]
+					},
+					{
+						"label": "memo",
+						"value": [
+							"string",
+							"Week salary"
+						]
+					},
+					{
+						"label": "account_c",
+						"value": [
+							"string",
+							"abc"
+						]
+					}
+		 ]
+	]
+}
+`
 const account_openings_tester = `
 {
 	"content_groups": 
@@ -213,6 +334,37 @@ const account_income = `
 							"value": [
 									"string",
 									"Income"
+							]
+					},
+					{
+							"label": "account_type",
+							"value": [
+									"int64",
+									1
+							]
+					}
+		 ]
+	]
+}
+`
+
+const account_food = `
+{
+	"content_groups": 
+	[
+			[
+					{
+							"label": "content_group_label",
+							"value": [
+									"string",
+									"details"
+							]
+					},
+					{
+							"label": "account_name",
+							"value": [
+									"string",
+									"Food"
 							]
 					},
 					{
