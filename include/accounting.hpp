@@ -1,11 +1,90 @@
+#pragma once
+
+#include <string_view>
+#include <vector>
+
 #include <eosio/eosio.hpp>
+
+#include <document_graph/document_graph.hpp>
+#include <document_graph/content_wrapper.hpp>
+
+namespace hypha {
+
 using namespace eosio;
 
-CONTRACT accounting : public contract {
-   public:
-      using contract::contract;
-
-      ACTION hi( name nm );
-
-      using hi_action = action_wrapper<"hi"_n, &accounting::hi>;
+namespace ACCOUNT_GROUP {
+enum E
+{
+  kAsset,
+  kLiability,
+  kEquity,
+  kRevenue,
+  kExpense,
+  kGain,
+  kLoss
 };
+}
+
+CONTRACT accounting : public contract {
+ public:
+  using contract::contract;
+
+  DECLARE_DOCUMENT_GRAPH(accounting)
+
+  ACTION
+  addledger(name creator, ContentGroups& ledger_info);
+
+  /**
+  * Adds an account to the graph
+  */
+  ACTION 
+  create(name creator, ContentGroups& account_info);
+
+  ACTION
+  transact(name issuer, ContentGroups& trx_info);
+
+  /**
+  * Gets the root document of the graph
+  */
+  const Document& 
+  getRoot() const;
+
+  ContentGroups
+  getOpeningsAccount(checksum256 parent);
+
+  ContentGroups
+  getEquityAccount(checksum256 parent);
+
+  static bool
+  isCurrencySupported(symbol currency);
+
+  static const std::vector<symbol_code>&
+  getSupportedCurrencies();
+ private:
+
+  ContentGroup
+  getTrxHeader(string memo, time_point date, checksum256 ledger);
+
+  checksum256
+  getOpeningsHash(checksum256 parent);
+
+  ContentGroup
+  getTrxComponent(checksum256 account, 
+                  string memo, 
+                  asset amount, 
+                  string label = "component");
+
+  /**
+  * @brief Creates a parent->child relationship with edges between accounts 
+  */
+  void 
+  parent(name creator, 
+         checksum256 parent, 
+         checksum256 child, 
+         string_view fromToEdge = "account", 
+         string_view toFromEdge = "ownedby");
+
+  DocumentGraph m_documentGraph{get_self()};
+};
+
+}

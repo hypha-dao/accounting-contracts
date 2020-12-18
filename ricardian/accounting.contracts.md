@@ -1,3 +1,3 @@
-<h1 class="contract"> hi </h1>
+<h1 class="contract"> create </h1>
 
-Stub for hi action's ricardian contract
+This action will add a new account to the graph.

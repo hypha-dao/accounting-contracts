@@ -11,6 +11,8 @@ import (
 
 	"github.com/eoscanada/eos-go"
 	"github.com/hypha-dao/accounting-go"
+	"github.com/hypha-dao/document/docgraph"
+
 	"gotest.tools/assert"
 )
 
@@ -18,7 +20,73 @@ var env *Environment
 
 //var chainResponsePause, votingPause, periodPause time.Duration
 
-// var claimedPeriods uint64
+// var claimedPeriods uint64.
+
+func CreateTestLedger(t *testing.T) string {
+
+	ledgerCgs, err := StrToContentGroups(ledger_tester)
+
+	assert.NilError(t, err)
+
+	_, err = accounting.AddLedger(env.ctx,
+		&env.api,
+		env.Accounting,
+		eos.AccountName("testcreate"),
+		ledgerCgs)
+
+	assert.NilError(t, err)
+
+	//TODO: I need a way to get the hash with the content groups in go
+	return "545df793947527201427c136cb8c817a40c625d350a53b72c141a22e73f85e3b"
+}
+
+func BuildAccount(parent, ledger eos.Checksum256, accountCgs []docgraph.ContentGroup) {
+
+	accountCgs[0] = append(accountCgs[0], docgraph.ContentItem{
+		Label: "parent_account",
+		Value: &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   parent,
+			}},
+	})
+
+	accountCgs[0] = append(accountCgs[0], docgraph.ContentItem{
+		Label: "ledger_account",
+		Value: &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   ledger,
+			}},
+	})
+}
+
+func CreateAccount(env *Environment, data string, parent, ledger eos.Checksum256) (docgraph.Document, error) {
+
+	accountCgs, err := StrToContentGroups(data)
+
+	if err != nil {
+		return docgraph.Document{}, err
+	}
+
+	BuildAccount(parent, ledger, accountCgs)
+
+	_, err = accounting.CreateAcct(env.ctx,
+		&env.api,
+		env.Accounting,
+		eos.AccountName("tester"),
+		accountCgs)
+
+	if err != nil {
+		return docgraph.Document{}, err
+	}
+
+	doc, err := docgraph.GetLastDocument(env.ctx,
+		&env.api,
+		env.Accounting)
+
+	return doc, err
+}
 
 func SaveGraph(ctx context.Context, api *eos.API, contract eos.AccountName, folderName string) error {
 
@@ -97,8 +165,7 @@ func setupTestCase(t *testing.T) func(t *testing.T) {
 	}
 }
 
-
-func TestHiAction(t *testing.T) {
+func TestAddLedgerAction(t *testing.T) {
 
 	teardownTestCase := setupTestCase(t)
 	defer teardownTestCase(t)
@@ -111,7 +178,231 @@ func TestHiAction(t *testing.T) {
 		t.Log("\nDAO Environment Setup complete\n")
 	})
 
-	t.Run("Testing hi action", func(t *testing.T) {
-		accounting.SayHi(env.ctx, &env.api, env.Accounting);
+	t.Run("Testing AddLedger action", func(t *testing.T) {
+
+		CreateTestLedger(t)
+
+		pause(t, time.Second, "", "")
+		//accounting.SayHi(env.ctx, &env.api, env.Accounting);
+	})
+}
+
+func TestCreateAccount(t *testing.T) {
+
+	teardownTestCase := setupTestCase(t)
+	defer teardownTestCase(t)
+
+	// var env Environment
+	env = SetupEnvironment(t)
+
+	t.Run("Configuring the DAO environment: ", func(t *testing.T) {
+		t.Log(env.String())
+		t.Log("\nDAO Environment Setup complete\n")
+	})
+
+	t.Run("Testing Create action", func(t *testing.T) {
+
+		ledgerHashStr := CreateTestLedger(t)
+
+		pause(t, time.Second, "", "")
+
+		ledgerDoc, err := docgraph.LoadDocument(env.ctx,
+			&env.api,
+			env.Accounting,
+			ledgerHashStr)
+
+		assert.NilError(t, err)
+
+		accountCgs, err := StrToContentGroups(account_mkting)
+
+		assert.NilError(t, err)
+
+		BuildAccount(ledgerDoc.Hash, ledgerDoc.Hash, accountCgs)
+
+		t.Log("Creating simple account...\n")
+		_, err = accounting.CreateAcct(env.ctx,
+			&env.api,
+			env.Accounting,
+			eos.AccountName("testcreate"),
+			accountCgs)
+
+		assert.NilError(t, err)
+
+		pause(t, time.Second, "", "")
+
+		accountCgs, err = StrToContentGroups(account_openings_tester)
+
+		assert.NilError(t, err)
+
+		BuildAccount(ledgerDoc.Hash, ledgerDoc.Hash, accountCgs)
+
+		t.Log("Creating account with opening balances...\n")
+		_, err = accounting.CreateAcct(env.ctx,
+			&env.api,
+			env.Accounting,
+			eos.AccountName("testcreate"),
+			accountCgs)
+
+		assert.NilError(t, err)
+
+		pause(t, time.Second, "", "")
+
+		//Test error when
+		t.Log("Testing duplicated account...\n")
+		_, err = accounting.CreateAcct(env.ctx,
+			&env.api,
+			env.Accounting,
+			eos.AccountName("testcreate"),
+			accountCgs)
+
+		assert.Assert(t, err != nil)
+
+		pause(t, time.Second, "", "")
+
+		//accounting.SayHi(env.ctx, &env.api, env.Accounting);
+	})
+}
+
+func TestTransact(t *testing.T) {
+	teardownTestCase := setupTestCase(t)
+	defer teardownTestCase(t)
+
+	// var env Environment
+	env = SetupEnvironment(t)
+
+	var ledgerDoc, expensesAcc, incomeAcc, mktingAcc, salaryAcc docgraph.Document
+
+	t.Run("Configuring the DAO environment: ", func(t *testing.T) {
+		t.Log(env.String())
+		t.Log("\nDAO Environment Setup complete\n")
+	})
+
+	t.Run(("Testing transact action"), func(t *testing.T) {
+
+		ledgerHashStr := CreateTestLedger(t)
+
+		pause(t, time.Second, "", "")
+
+		ledgerDoc, err := docgraph.LoadDocument(env.ctx,
+			&env.api,
+			env.Accounting,
+			ledgerHashStr)
+
+		assert.NilError(t, err)
+
+		t.Log("Creating accounts...\n")
+
+		expensesAcc, err = CreateAccount(env, account_expenses, ledgerDoc.Hash, ledgerDoc.Hash)
+
+		assert.NilError(t, err)
+
+		incomeAcc, err = CreateAccount(env, account_income, ledgerDoc.Hash, ledgerDoc.Hash)
+
+		assert.NilError(t, err)
+
+		mktingAcc, err = CreateAccount(env, account_mkting, expensesAcc.Hash, ledgerDoc.Hash)
+
+		assert.NilError(t, err)
+
+		salaryAcc, err = CreateAccount(env, account_salary, incomeAcc.Hash, ledgerDoc.Hash)
+
+		assert.NilError(t, err)
+
+		trxCgs, err := StrToContentGroups(transaction_test_1)
+
+		assert.NilError(t, err)
+
+		trxDoc := docgraph.Document{}
+		trxDoc.ContentGroups = trxCgs
+
+		err = ReplaceContent(&trxDoc, "account_a", "account",
+			&docgraph.FlexValue{
+				BaseVariant: eos.BaseVariant{
+					TypeID: docgraph.GetVariants().TypeID("checksum256"),
+					Impl:   mktingAcc.Hash,
+				}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "account_b", "account", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   salaryAcc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "trx_ledger", "trx_ledger", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   ledgerDoc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		_, err = accounting.Transact(env.ctx,
+			&env.api,
+			env.Accounting,
+			env.Accounting,
+			trxDoc.ContentGroups)
+
+		assert.NilError(t, err)
+	})
+
+	t.Run(("Testing implied transaction"), func(t *testing.T) {
+
+		t.Log("Creating food account...\n")
+
+		foodAcc, err := CreateAccount(env, account_food, expensesAcc.Hash, ledgerDoc.Hash)
+
+		assert.NilError(t, err)
+
+		trxCgs, err := StrToContentGroups(transaction_test_implied)
+
+		assert.NilError(t, err)
+
+		trxDoc := docgraph.Document{}
+		trxDoc.ContentGroups = trxCgs
+
+		err = ReplaceContent(&trxDoc, "account_a", "account",
+			&docgraph.FlexValue{
+				BaseVariant: eos.BaseVariant{
+					TypeID: docgraph.GetVariants().TypeID("checksum256"),
+					Impl:   mktingAcc.Hash,
+				}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "account_b", "account", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   foodAcc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "account_c", "account", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   incomeAcc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "trx_ledger", "trx_ledger", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   ledgerDoc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		_, err = accounting.Transact(env.ctx,
+			&env.api,
+			env.Accounting,
+			env.Accounting,
+			trxDoc.ContentGroups)
+
+		assert.NilError(t, err)
 	})
 }
