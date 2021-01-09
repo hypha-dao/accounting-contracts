@@ -49,6 +49,10 @@ func StrToContentGroups(data string) ([]docgraph.ContentGroup, error) {
 	return tempDoc.ContentGroups, nil
 }
 
+func CreateStrContent(label string, value string) {
+	
+}
+
 func GetContent(d *docgraph.Document, label string) (*docgraph.ContentItem, error) {
 	for _, contentGroup := range d.ContentGroups {
 		for _, content := range contentGroup {

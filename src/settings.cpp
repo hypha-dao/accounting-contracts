@@ -11,11 +11,12 @@ getInitalGroups()
     ContentGroup {
       Content{CONTENT_GROUP_LABEL, DETAILS},
       Content{ROOT_NODE, accounting::getRoot().getHash()},
-      Content{"name", SETTINGS}
+      // Content{"name", SETTINGS}
     },
     ContentGroup {
       Content{CONTENT_GROUP_LABEL, SETTINGS_DATA}
-    }
+    },
+    accounting::getSystemGroup("settings", "settings")
   };
 }
 
@@ -30,15 +31,18 @@ Settings::Settings()
   }
   else {
     m_settings = Document(accounting::getName(), accounting::getName(), getInitalGroups());
+    Edge(accounting::getName(), 
+         accounting::getName(), 
+         root.getHash(), m_settings.getHash(), SETTINGS_EDGE);
   }
 }
 
 void 
-Settings::addOrReplace(const string& setting, Content::FlexValue value)
+Settings::addOrReplace(const string& setting, Content::FlexValue value, const char* groupName)
 {
   ContentWrapper cw(m_settings.getContentGroups());
   
-  auto group = cw.getGroupOrFail(SETTINGS_DATA);
+  auto group = cw.getGroupOrFail(groupName);
 
   ContentWrapper::insertOrReplace(*group, Content{setting, value});
 
@@ -52,11 +56,24 @@ Settings::addOrReplace(const string& setting, Content::FlexValue value)
 }
 
 void
-Settings::remove(const string& setting)
+Settings::remove(const string& setting, const char* groupName)
 {
   ContentWrapper cw(m_settings.getContentGroups());
 
-  cw.removeContent(SETTINGS_DATA, setting);
+  cw.removeContent(groupName, setting);
+
+  auto dgraph = DocumentGraph(accounting::getName());
+
+  m_settings = dgraph.updateDocument(accounting::getName(), 
+                                     m_settings.getHash(),
+                                     m_settings.getContentGroups());
+}
+
+void Settings::remove(const Content& setting, const char* groupName) 
+{
+  ContentWrapper cw(m_settings.getContentGroups());
+
+  cw.removeContent(groupName, setting);
 
   auto dgraph = DocumentGraph(accounting::getName());
 

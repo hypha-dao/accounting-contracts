@@ -33,6 +33,15 @@ CONTRACT accounting : public contract {
 
   DECLARE_DOCUMENT_GRAPH(accounting)
 
+  /**
+  * Creates the root document (useful for testing)
+  */ 
+  ACTION
+  createroot();
+
+  /**
+  * Adds a ledger account to the graph
+  */
   ACTION
   addledger(name creator, ContentGroups& ledger_info);
 
@@ -42,8 +51,14 @@ CONTRACT accounting : public contract {
   ACTION 
   create(name creator, ContentGroups& account_info);
 
+  /**
+   * Stores the components and transaction information in the graph
+   */
   ACTION
   transact(name issuer, ContentGroups& trx_info);
+
+  ACTION
+  newunrvwdtrx(name creator, ContentGroups trx_info);
 
   ACTION
   setsetting(string setting, Content::FlexValue value);
@@ -51,6 +66,11 @@ CONTRACT accounting : public contract {
   ACTION
   remsetting(string setting);
   
+  ACTION
+  addtrustacnt(name account);
+
+  ACTION
+  remtrustacnt(name account);
   /**
   * Gets the root document of the graph
   */
@@ -60,17 +80,23 @@ CONTRACT accounting : public contract {
   static name
   getName();
 
+  static ContentGroup
+  getSystemGroup(const char* nodeName, const char* type);
+
   ContentGroups
   getOpeningsAccount(checksum256 parent);
 
   ContentGroups
   getEquityAccount(checksum256 parent);
 
-  static bool
+  bool
   isCurrencySupported(symbol currency);
 
-  static const std::vector<symbol_code>&
+  const std::vector<symbol_code>&
   getSupportedCurrencies();
+
+  void
+  requireTrusted(name account);
  private:
 
   ContentGroup

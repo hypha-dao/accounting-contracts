@@ -23,6 +23,19 @@ type transact struct {
 	TransactionInfo []docgraph.ContentGroup `json: "trx_info"`
 }
 
+type setSetting struct {
+	Setting string             `json: "setting"`
+	Value   docgraph.FlexValue `json: "value"`
+}
+
+type remSetting struct {
+	Setting string `json: "setting"`
+}
+
+type trustAccount struct {
+	Account eos.AccountName `json: "account`
+}
+
 func AddLedger(ctx context.Context, api *eos.API, contract, creator eos.AccountName, ledger []docgraph.ContentGroup) (string, error) {
 
 	actions := []*eos.Action{{
@@ -69,6 +82,71 @@ func Transact(ctx context.Context, api *eos.API, contract, issuer eos.AccountNam
 		ActionData: eos.NewActionData(transact{
 			Issuer:          issuer,
 			TransactionInfo: trx,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+}
+
+func SetSetting(ctx context.Context, api *eos.API, contract eos.AccountName, setting string, value docgraph.FlexValue) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("setsetting"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: contract, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(setSetting{
+			Setting: setting,
+			Value:   value,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+}
+
+func RemSetting(ctx context.Context, api *eos.API, contract eos.AccountName, setting string) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("remsetting"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: contract, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(remSetting{
+			Setting: setting,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+}
+
+func AddTrustedAccount(ctx context.Context, api *eos.API, contract eos.AccountName, account eos.AccountName) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("addtrustacnt"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: contract, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(trustAccount{
+			Account: account,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+}
+
+func RemTrustedAccount(ctx context.Context, api *eos.API, contract eos.AccountName, account eos.AccountName) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("remtrustacnt"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: contract, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(trustAccount{
+			Account: account,
 		}),
 	}}
 

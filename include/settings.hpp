@@ -13,6 +13,8 @@ namespace hypha
 using eosio::check;
 
 //Singleton settings object
+//Settings added by the setsetting action will be stored
+//in the SETTINGS_DATA group
 class Settings
 {
  public:
@@ -22,11 +24,11 @@ class Settings
 
   template<class T>
   inline std::optional<T>
-  getOpt(const string& setting)
+  getOpt(const string& setting, const char* group = SETTINGS_DATA)
   {
     ContentWrapper cw(m_settings.getContentGroups());
     
-    if (auto [idx, content] = cw.get(SETTINGS_DATA, setting); content) {
+    if (auto [idx, content] = cw.get(group, setting); content) {
       if (auto value = std::get_if<T>(content->value)) {
         return std::optional{*value};
       }
@@ -37,9 +39,9 @@ class Settings
 
   template<class T>
   inline T
-  getOrFail(const string& setting) 
+  getOrFail(const string& setting, const char* group = SETTINGS_DATA) 
   {
-    if (auto opt = getOpt<T>(setting)) {
+    if (auto opt = getOpt<T>(setting, group)) {
       return *opt;
     }
 
@@ -50,20 +52,31 @@ class Settings
 
   template<class T>
   inline T
-  getOrDefault(const string& setting, const T& defVal = T())
+  getOrDefault(const string& setting, const T& defVal = T(), const char* group = SETTINGS_DATA)
   {
-    if (auto opt = getOpt<T>(setting)) {
+    if (auto opt = getOpt<T>(setting, group)) {
       return *opt;
     }
 
     return defVal;
+  }  
+
+  inline ContentWrapper
+  getWrapper() 
+  {
+    return ContentWrapper(m_settings.getContentGroups());
   }
 
   void 
-  addOrReplace(const string& setting, Content::FlexValue value);
+  addOrReplace(const string& setting, 
+               Content::FlexValue value, 
+               const char* groupName = SETTINGS_DATA);
 
   void
-  remove(const string& setting);
+  remove(const string& setting, const char* groupName = SETTINGS_DATA);
+
+  void
+  remove(const Content& setting, const char* groupName = SETTINGS_DATA);
 
  private:
 

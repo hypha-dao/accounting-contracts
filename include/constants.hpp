@@ -8,6 +8,9 @@ using eosio::name;
 
 constexpr auto ROOT_NODE = "root_node";
 constexpr auto DETAILS = "details";
+constexpr auto SYSTEM = "system";
+constexpr auto NAME_LABEL = "node_label";
+constexpr auto TYPE_LABEL = "type";
 constexpr auto OPENING_BALANCES = "opening_balances";
 constexpr auto ACCOUNT_NAME = "account_name";
 constexpr auto LEDGER_ACCOUNT = "ledger_account";
@@ -23,6 +26,8 @@ constexpr auto COMPONENT_ACCOUNT = "account";
 constexpr auto SETTINGS = "settings";
 constexpr auto UPDATE_DATE = "update_date";
 constexpr auto SETTINGS_DATA = "settings_data";
+constexpr auto TRUSTED_ACCOUNTS_GROUP = "trusted_accounts";
+constexpr auto TRUSTED_ACCOUNT_LABEL = "trusted_account";
 constexpr auto SETTINGS_EDGE = name("settings");
 
 inline size_t

@@ -105,10 +105,10 @@ func SetupEnvironment(t *testing.T) *Environment {
 	} else {
 		devHome = "."
 	}
-	devHome = devHome + "/dev"
+	devHome = devHome + ""
 	devHome = "/src"
 
-	accountingHome = devHome + "/develop/accounting-contracts"
+	accountingHome = devHome + "/accounting-contracts"
 	accountingWasm = accountingHome + "/build/accounting/accounting.wasm"
 	accountingAbi = accountingHome + "/build/accounting/accounting.abi"
 
@@ -219,7 +219,7 @@ func SetupEnvironment(t *testing.T) *Environment {
 	// _, err = eostest.SetContract(env.ctx, &env.api, env.DAO, daoWasm, daoAbi)
 	// assert.NilError(t, err)
 
-	t.Log("Deploying Treasury contract to 		: ", env.Bank)
+	/*t.Log("Deploying Treasury contract to 		: ", env.Bank)
 	_, err = eostest.SetContract(env.ctx, &env.api, env.Bank, treasuryWasm, treasuryAbi)
 	assert.NilError(t, err)
 
@@ -243,7 +243,7 @@ func SetupEnvironment(t *testing.T) *Environment {
 	// rootHash := string("d4ec74355830056924c83f20ffb1a22ad0c5145a96daddf6301897a092de951e")
 	// env.Root, err = docgraph.LoadDocument(env.ctx, &env.api, env.DAO, rootHash)
 	// assert.NilError(t, err)
-
+  
 	husdMaxSupply, _ := eos.NewAssetFromString("1000000000.00 HUSD")
 	_, err = eostest.DeployAndCreateToken(env.ctx, t, &env.api, tokenHome, env.HusdToken, env.Bank, husdMaxSupply)
 	assert.NilError(t, err)
@@ -338,6 +338,8 @@ func SetupEnvironment(t *testing.T) *Environment {
 	// 	env.Members = append(env.Members, newMember)
 	// 	index++
 	// }
+
+	*/
 
 	return &env
 }

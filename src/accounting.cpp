@@ -1,4 +1,4 @@
-#include <accounting.hpp>
+#include "accounting.hpp"
 
 #include <algorithm>
 
@@ -20,10 +20,23 @@ accounting::accounting(name self, name first_receiver, datastream<const char*> d
   g_contractName = get_self();
 }
 
+ACTION 
+accounting::createroot()
+{
+  require_auth(get_self());
+  getRoot();
+}
+
 ACTION
 accounting::addledger(name creator, ContentGroups& ledger_info)
 {
   require_auth(get_self());
+
+  ContentWrapper cw(ledger_info);
+
+  auto&& ledgerName = cw.getOrFail(DETAILS, "name")->getAs<string>();
+
+  ledger_info.push_back(getSystemGroup(ledgerName.c_str(), "ledger"));
 
   Document ledger(get_self(), creator, std::move(ledger_info));
 
@@ -80,11 +93,14 @@ accounting::create(name creator, ContentGroups& account_info)
   }
 
   //Create the account
-  Document account(get_self(), creator, ContentGroup{
-    Content{CONTENT_GROUP_LABEL, "details"},
-    Content{ACCOUNT_NAME, accountName},
-    Content{ACCOUNT_TYPE, accountType},
-    Content{PARENT_ACCOUNT, parentHash}
+  Document account(get_self(), creator, { 
+    ContentGroup{
+      Content{CONTENT_GROUP_LABEL, "details"},
+      Content{ACCOUNT_NAME, accountName},
+      Content{ACCOUNT_TYPE, accountType},
+      Content{PARENT_ACCOUNT, parentHash}
+    },
+    getSystemGroup(accountName.c_str(), "account"),
   });
   
   parent(creator, parentHash, account.getHash());
@@ -154,15 +170,17 @@ accounting::transact(name issuer, ContentGroups& trx_info)
 
   trx.verifyBalanced();
 
-  Document trxDoc(get_self(), issuer, trx.getDetails());
+  Document trxDoc(get_self(), issuer, { trx.getDetails(), 
+                                        getSystemGroup("transaction", "trx") });
 
   for (auto& compnt : trx.getComponents()) {
     Document compntAcct(get_self(), compnt.account);
 
-    Document compntDoc(get_self(), issuer, getTrxComponent(compnt.account, 
-                                                           compnt.memo, 
-                                                           compnt.amount,
-                                                           "details"));
+    Document compntDoc(get_self(), issuer, { getTrxComponent(compnt.account, 
+                                                             compnt.memo, 
+                                                             compnt.amount,
+                                                             "details"),
+                                             getSystemGroup("component", "component") });
 
     parent(issuer, trxDoc.getHash(), compntDoc.getHash(), "component", "transaction");
 
@@ -170,6 +188,15 @@ accounting::transact(name issuer, ContentGroups& trx_info)
     
     Edge::getOrNew(get_self(), issuer, compntAcct.getHash(), trxDoc.getHash(), "transaction"_n);
   }
+}
+
+ACTION
+accounting::newunrvwdtrx(name creator, ContentGroups trx_info) 
+{
+  require_auth(creator);
+  
+  //Check if account is trusted
+  requireTrusted(creator);
 }
 
 ACTION
@@ -184,6 +211,53 @@ accounting::remsetting(string setting)
 {
   Settings& settings = Settings::instance();
   settings.remove(setting);
+}
+
+ACTION
+accounting::addtrustacnt(name account)
+{
+  Settings& settings = Settings::instance();
+  
+  auto cw = settings.getWrapper();
+
+  auto [idx, group] = cw.getGroupOrCreate(TRUSTED_ACCOUNTS_GROUP);
+
+  Content acnt(TRUSTED_ACCOUNT_LABEL, account);
+
+  //Check if account already exists
+  if (std::find(group->begin(), group->end(), acnt) == group->end()) {
+    group->push_back(acnt);
+  }
+}
+
+ACTION
+accounting::remtrustacnt(name account)
+{
+  Settings& settings = Settings::instance();
+  settings.remove(Content(TRUSTED_ACCOUNT_LABEL, account), 
+                  TRUSTED_ACCOUNTS_GROUP);
+}
+
+void
+accounting::requireTrusted(name account)
+{
+  Settings& settings = Settings::instance();
+  
+  auto cw = settings.getWrapper();
+
+  if (auto [idx, group] = cw.getGroup(TRUSTED_ACCOUNTS_GROUP); group) {
+
+    auto isSameAccnt =  [account](const Content& ctn) {
+      return ctn.getAs<name>() == account;
+    };
+
+    auto it = std::find_if(group->begin(), group->end(), isSameAccnt);
+
+    if (it != group->end()) { return; }       
+  }
+  //else no trusted accounts
+
+  check(false, "Only trusted accounts can perform this action");
 }
 
 ContentGroups
@@ -204,7 +278,11 @@ accounting::getOpeningsAccount(checksum256 parent)
   };
   */
 
-  return {details/*, openings*/};
+  return {
+    details,
+    getSystemGroup("opening_balances", "account"),
+    /*, openings*/
+  };
 }
 
 ContentGroups
@@ -224,7 +302,11 @@ accounting::getEquityAccount(checksum256 parent)
     Content("opening_balance_usd", asset(0, symbol("BTC", 12)))
   }; */
 
-  return {details/*, openings*/};
+  return {
+    details,
+    getSystemGroup("equity", "account"),
+    /*, openings*/
+  };
 }
 
 checksum256 
@@ -272,13 +354,35 @@ accounting::parent(name creator,
   Edge(get_self(), creator, child, parent, name(toFromEdge));
 }
 
+static ContentGroups
+getRootContentGroups() {
+  return {
+    ContentGroup {
+      Content{CONTENT_GROUP_LABEL, DETAILS},
+      Content{ROOT_NODE, accounting::getName()},
+    },
+    accounting::getSystemGroup("root", ROOT_NODE)
+  };
+}
+
+ContentGroup
+accounting::getSystemGroup(const char* nodeName, const char* type)
+{
+  return {
+    Content(CONTENT_GROUP_LABEL, SYSTEM),
+    Content(NAME_LABEL, nodeName),
+    Content(TYPE_LABEL, type)
+  };
+}
+
+
 const Document& 
 accounting::getRoot()
 {
   //This assumes the root document won't change
   static Document rootDoc = Document::getOrNew(getName(), 
                                                getName(),
-                                               Content(ROOT_NODE, getName()));
+                                               getRootContentGroups());
   
   return rootDoc;
 }

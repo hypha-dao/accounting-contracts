@@ -6,10 +6,24 @@ const ledger_tester = `
 	[
 			[
 				{
+					"label": "content_group_label",
+					"value": [
+							"string",
+							"details"
+					]
+				},
+				{
 					"label": "owner",
 					"value": [
 							"name",
 							"tester"
+					]
+				},
+				{
+					"label": "name",
+					"value": [
+							"string",
+							"common"
 					]
 				}
 			]
