@@ -73,6 +73,11 @@ class Settings
                const char* groupName = SETTINGS_DATA);
 
   void
+  add(const string& setting, 
+      Content::FlexValue value, 
+      const char* groupName = SETTINGS_DATA);
+
+  void
   remove(const string& setting, const char* groupName = SETTINGS_DATA);
 
   void

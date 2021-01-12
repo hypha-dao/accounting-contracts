@@ -58,7 +58,7 @@ CONTRACT accounting : public contract {
   transact(name issuer, ContentGroups& trx_info);
 
   ACTION
-  newunrvwdtrx(name creator, ContentGroups trx_info);
+  newunrvwdtrx(name issuer, ContentGroups trx_info);
 
   ACTION
   setsetting(string setting, Content::FlexValue value);
@@ -97,6 +97,9 @@ CONTRACT accounting : public contract {
 
   void
   requireTrusted(name account);
+  
+  checksum256
+  getUnreviewedTrxBucket();
  private:
 
   ContentGroup

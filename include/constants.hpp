@@ -29,6 +29,10 @@ constexpr auto SETTINGS_DATA = "settings_data";
 constexpr auto TRUSTED_ACCOUNTS_GROUP = "trusted_accounts";
 constexpr auto TRUSTED_ACCOUNT_LABEL = "trusted_account";
 constexpr auto SETTINGS_EDGE = name("settings");
+constexpr auto UNREVIEWED_BUCKET_EDGE = "unrvwdbucket";
+constexpr auto UNREVIEWED_BUCKET_LABEL = "unreviewed transtaction bucket";
+constexpr auto UNREVIEWED_EDGE = "unrvwdtrx";
+constexpr auto UNREVIEWED_LABEL = "unreviewed transaction";
 
 inline size_t
 createID() {

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	eostest "github.com/digital-scarcity/eos-go-test"
 	"github.com/eoscanada/eos-go"
 	"github.com/hypha-dao/accounting-go"
 	"github.com/hypha-dao/document/docgraph"
@@ -463,7 +464,7 @@ func TestSettings(t *testing.T) {
 		_, err = accounting.SetSetting(env.ctx,
 			&env.api,
 			env.Accounting,
-			"test",
+			"test2",
 			docgraph.FlexValue{
 				BaseVariant: eos.BaseVariant{
 					TypeID: docgraph.GetVariants().TypeID("string"),
@@ -476,7 +477,7 @@ func TestSettings(t *testing.T) {
 		_, err = accounting.SetSetting(env.ctx,
 			&env.api,
 			env.Accounting,
-			"test",
+			"test2",
 			docgraph.FlexValue{
 				BaseVariant: eos.BaseVariant{
 					TypeID: docgraph.GetVariants().TypeID("string"),
@@ -484,18 +485,68 @@ func TestSettings(t *testing.T) {
 				}})
 
 		assert.NilError(t, err)
+	})
+}
 
-		//Update value
-		_, err = accounting.SetSetting(env.ctx,
-			&env.api,
-			env.Accounting,
-			"extra",
-			docgraph.FlexValue{
-				BaseVariant: eos.BaseVariant{
-					TypeID: docgraph.GetVariants().TypeID("string"),
-					Impl:   "extra_setting",
-				}})
+func TestUnreviewedTransaction(t *testing.T) {
+
+	teardownTestCase := setupTestCase(t)
+	defer teardownTestCase(t)
+
+	// var env Environment
+	env = SetupEnvironment(t)
+
+	//var ledgerDoc, expensesAcc, incomeAcc, mktingAcc docgraph.Document
+
+	t.Run("Configuring the DAO environment: ", func(t *testing.T) {
+		t.Log(env.String())
+		t.Log("\nDAO Environment Setup complete\n")
+	})
+
+	// transactTest(t, &ledgerDoc, &expensesAcc, &incomeAcc, &mktingAcc)
+
+	// impliedTransacTest(t, ledgerDoc, expensesAcc, incomeAcc, mktingAcc)
+
+	_, tester, _ := eostest.CreateAccountWithRandomKey(env.ctx, &env.api, "tester")
+	_, alpha, _ := eostest.CreateAccountWithRandomKey(env.ctx, &env.api, "alpha")
+	_, beta, _ := eostest.CreateAccountWithRandomKey(env.ctx, &env.api, "beta")
+	_, gamma, _ := eostest.CreateAccountWithRandomKey(env.ctx, &env.api, "gamma")
+
+	t.Run("Testing trusted accounts", func(t *testing.T) {
+		_, err := accounting.AddTrustedAccount(env.ctx, &env.api, env.Accounting, tester)
 
 		assert.NilError(t, err)
+
+		_, err = accounting.AddTrustedAccount(env.ctx, &env.api, env.Accounting, alpha)
+
+		assert.NilError(t, err)
+
+		_, err = accounting.AddTrustedAccount(env.ctx, &env.api, env.Accounting, beta)
+
+		assert.NilError(t, err)
+
+		_, err = accounting.AddTrustedAccount(env.ctx, &env.api, env.Accounting, gamma)
+
+		assert.NilError(t, err)
+
+		_, err = accounting.RemTrustedAccount(env.ctx, &env.api, env.Accounting, beta)
+
+		assert.NilError(t, err)
+	})
+
+	t.Run("Testing unreviewed transactions", func(t *testing.T) {
+
+		trxInfo, err := StrToContentGroups(unreviewd_trx_1)
+
+		assert.NilError(t, err)
+
+		_, err = accounting.UnreviewedTrx(env.ctx, &env.api, env.Accounting, tester, trxInfo)
+
+		assert.NilError(t, err)
+
+		//Must give error since beta is not trusted account
+		_, err = accounting.UnreviewedTrx(env.ctx, &env.api, env.Accounting, beta, trxInfo)
+
+		assert.Assert(t, err != nil)
 	})
 }

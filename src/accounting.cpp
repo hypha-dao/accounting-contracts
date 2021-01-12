@@ -191,17 +191,25 @@ accounting::transact(name issuer, ContentGroups& trx_info)
 }
 
 ACTION
-accounting::newunrvwdtrx(name creator, ContentGroups trx_info) 
+accounting::newunrvwdtrx(name issuer, ContentGroups trx_info) 
 {
-  require_auth(creator);
+  require_auth(issuer);
   
   //Check if account is trusted
-  requireTrusted(creator);
+  requireTrusted(issuer);
+
+  auto bucketHash = getUnreviewedTrxBucket();
+
+  Document newUnrvwdTrx(get_self(), issuer, std::move(trx_info));
+
+  Edge(get_self(), issuer, bucketHash, newUnrvwdTrx.getHash(), name(UNREVIEWED_EDGE));
 }
 
 ACTION
 accounting::setsetting(string setting, Content::FlexValue value)
 {
+  require_auth(get_self());
+
   Settings& settings = Settings::instance();
   settings.addOrReplace(setting, std::move(value));
 }
@@ -209,6 +217,8 @@ accounting::setsetting(string setting, Content::FlexValue value)
 ACTION
 accounting::remsetting(string setting)
 {
+  require_auth(get_self());
+
   Settings& settings = Settings::instance();
   settings.remove(setting);
 }
@@ -216,6 +226,10 @@ accounting::remsetting(string setting)
 ACTION
 accounting::addtrustacnt(name account)
 {
+  require_auth(get_self());
+
+  check(is_account(account), "Account must exist before adding it");
+
   Settings& settings = Settings::instance();
   
   auto cw = settings.getWrapper();
@@ -226,13 +240,19 @@ accounting::addtrustacnt(name account)
 
   //Check if account already exists
   if (std::find(group->begin(), group->end(), acnt) == group->end()) {
-    group->push_back(acnt);
+    //group->push_back(acnt);
+    settings.add(acnt.label, acnt.value, TRUSTED_ACCOUNTS_GROUP);
+  }
+  else {
+    check(false, "Account is trusted already");
   }
 }
 
 ACTION
 accounting::remtrustacnt(name account)
 {
+  require_auth(get_self());
+
   Settings& settings = Settings::instance();
   settings.remove(Content(TRUSTED_ACCOUNT_LABEL, account), 
                   TRUSTED_ACCOUNTS_GROUP);
@@ -246,18 +266,52 @@ accounting::requireTrusted(name account)
   auto cw = settings.getWrapper();
 
   if (auto [idx, group] = cw.getGroup(TRUSTED_ACCOUNTS_GROUP); group) {
-
+    
     auto isSameAccnt =  [account](const Content& ctn) {
       return ctn.getAs<name>() == account;
     };
 
-    auto it = std::find_if(group->begin(), group->end(), isSameAccnt);
+    //Warning: I'm assuming that content_group_label is always the first
+    //item so I skip it
+    auto it = std::find_if(group->begin() + 1, group->end(), isSameAccnt);
 
     if (it != group->end()) { return; }       
   }
   //else no trusted accounts
 
   check(false, "Only trusted accounts can perform this action");
+}
+
+checksum256 
+accounting::getUnreviewedTrxBucket() 
+{
+  auto rootHash = getRoot().getHash();
+  name edgeName = name(UNREVIEWED_BUCKET_EDGE);
+  
+  //Check if we already have the bucket
+  auto edges = m_documentGraph.getEdgesFrom(rootHash, edgeName);
+  
+  //Create if it doesn't exit
+  if (edges.empty()) {
+    Document unreviewedTrxBucket = Document(get_self(), get_self(), ContentGroups{
+      ContentGroup{
+        Content{CONTENT_GROUP_LABEL, DETAILS}
+      },
+      ContentGroup{
+        Content{CONTENT_GROUP_LABEL, SYSTEM},
+        Content{NAME_LABEL, UNREVIEWED_BUCKET_LABEL},
+        Content{TYPE_LABEL, UNREVIEWED_EDGE}
+      },
+    });
+    Edge(get_self(), get_self(), rootHash, unreviewedTrxBucket.getHash(), edgeName);
+
+    return unreviewedTrxBucket.getHash();
+  }
+  else {
+    check(edges.size() == 1, "There are more than 1 unreviewed transactions bucket");
+
+    return edges[0].to_node;
+  }  
 }
 
 ContentGroups

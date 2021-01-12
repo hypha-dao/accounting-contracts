@@ -152,3 +152,21 @@ func RemTrustedAccount(ctx context.Context, api *eos.API, contract eos.AccountNa
 
 	return eostest.ExecTrx(ctx, api, actions)
 }
+
+//Check with permissions
+func UnreviewedTrx(ctx context.Context, api *eos.API, contract, issuer eos.AccountName, trx []docgraph.ContentGroup) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("newunrvwdtrx"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: issuer, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(transact{
+			Issuer:          issuer,
+			TransactionInfo: trx,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+}

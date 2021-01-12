@@ -55,6 +55,24 @@ Settings::addOrReplace(const string& setting, Content::FlexValue value, const ch
                                      m_settings.getContentGroups());
 }
 
+void 
+Settings::add(const string& setting, 
+              Content::FlexValue value, 
+              const char* groupName) 
+{
+  ContentWrapper cw(m_settings.getContentGroups());
+
+  auto group = cw.getGroupOrFail(groupName);
+
+  group->push_back(Content{setting, value});
+
+  auto dgraph = DocumentGraph(accounting::getName());
+
+  m_settings = dgraph.updateDocument(accounting::getName(), 
+                                     m_settings.getHash(),
+                                     m_settings.getContentGroups());
+}
+
 void
 Settings::remove(const string& setting, const char* groupName)
 {
