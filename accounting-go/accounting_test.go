@@ -557,15 +557,11 @@ func TestUnreviewedTransaction(t *testing.T) {
 		
 		assert.Equal(t, "18a835a0d11c91ab6abdd75bf7df1e67deada952b448193e1d4ad76c6e585dfd;0", trxCursor.String())
 
-		//TODO: 
-		//For some reason it's not reading LastCourse properly
-		//other fields are good
+		lastCursor, err := accounting.GetCursorFromSource(env.ctx, &env.api, env.Accounting, trxSource.String())
 
-		//lastCursor, err := accounting.GetLastCursorFromSource(env.ctx, &env.api, env.Accounting, trxSource.String())
-
-		//assert.NilError(t, err)
+		assert.NilError(t, err)
 		
-		//assert.Equal(t, lastCursor, trxCursor.String())
+		assert.Equal(t, lastCursor, trxCursor.String())
 
 		//Must give error since beta is not trusted account
 		_, err = accounting.UnreviewedTrx(env.ctx, &env.api, env.Accounting, beta, trxInfo)
@@ -579,6 +575,44 @@ func TestUnreviewedTransaction(t *testing.T) {
 
 		_, err = accounting.UnreviewedTrx(env.ctx, &env.api, env.Accounting, tester, trxInfo)
 
-		assert.NilError(t, err)		
+		assert.NilError(t, err)
+
+		trxDoc, err = docgraph.GetLastDocument(env.ctx, &env.api, env.Accounting)
+
+		assert.NilError(t, err)
+
+		trxSource, err = trxDoc.GetContent("source");
+
+		assert.Equal(t, "btc-treasury-2", trxSource.String())
+
+		trxCursor, err = trxDoc.GetContent("cursor");
+		
+		assert.Equal(t, "87a835a0d11c91ab6abdd75bf7df1e67deada952b448193e1d4ad76c6e585bbb;9", trxCursor.String())
+
+		lastCursor, err = accounting.GetCursorFromSource(env.ctx, &env.api, env.Accounting, trxSource.String())
+
+		assert.NilError(t, err)
+		
+		assert.Equal(t, lastCursor, trxCursor.String())
+
+		//Test trx_2 with different cursor, it should override the trx_2 source
+		err = ReplaceContent(&trxDoc, "cursor", "cursor", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("string"),
+				Impl:   ";xabc123_",
+			}})
+
+		assert.NilError(t, err)
+
+		_, err = accounting.UnreviewedTrx(env.ctx, &env.api, env.Accounting, tester, trxDoc.ContentGroups)
+
+		assert.NilError(t, err)
+
+		//Check with the same source
+		lastCursor, err = accounting.GetCursorFromSource(env.ctx, &env.api, env.Accounting, trxSource.String())
+
+		assert.NilError(t, err)
+		
+		assert.Equal(t, lastCursor, ";xabc123_")
 	})
 }

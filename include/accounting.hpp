@@ -45,6 +45,8 @@ CONTRACT accounting : public contract {
     uint64_t primary_key() const { return key; }
 
     checksum256 by_source() const { return util::hashString(source); }
+
+    EOSLIB_SERIALIZE(cursor, (key)(source)(last_cursor))
   };
 
   using cursor_table = multi_index<"cursors"_n, cursor,

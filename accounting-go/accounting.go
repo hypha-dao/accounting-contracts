@@ -40,10 +40,10 @@ type trustAccount struct {
 	Account eos.AccountName `json: "account`
 }
 
-type Cursor struct {
-	Key 				uint64 				`json: "key"`
-	Source 			string 				`json: "source"`
-	LastCursor 	string 				`json: "last_cursor"`
+type cursor struct {
+	Key 				uint64 				`json:"key"`
+	Source 			string 				`json:"source"`
+	LastCursor 	string 				`json:"last_cursor"`
 }
 
 func AddLedger(ctx context.Context, api *eos.API, contract, creator eos.AccountName, ledger []docgraph.ContentGroup) (string, error) {
@@ -187,8 +187,6 @@ func GetLastCursor(ctx context.Context, api *eos.API, contract eos.AccountName) 
 	request.Code = string(contract)
 	request.Scope = string(contract)
 	request.Table = "cursors"
-	request.Index = "2"
-	request.KeyType = "sha256"
 	request.Limit = 1
 	request.Reverse = true
 	request.JSON = true
@@ -197,7 +195,7 @@ func GetLastCursor(ctx context.Context, api *eos.API, contract eos.AccountName) 
 		return "", fmt.Errorf("get table rows: %v", err)
 	}
 
-	var cursors []Cursor
+	var cursors []cursor
 
 	err = response.JSONToStructs(&cursors)
 	if err != nil {
@@ -232,7 +230,7 @@ func GetCursorFromSource(ctx context.Context, api *eos.API, contract eos.Account
 		return "", fmt.Errorf("get table rows %v: %v", hashStr, err)
 	}
 
-	var cursors []Cursor
+	var cursors []cursor
 
 	err = response.JSONToStructs(&cursors)
 	if err != nil {
