@@ -33,6 +33,8 @@ constexpr auto UNREVIEWED_BUCKET_EDGE = "unrvwdbucket";
 constexpr auto UNREVIEWED_BUCKET_LABEL = "unreviewed transtaction bucket";
 constexpr auto UNREVIEWED_EDGE = "unrvwdtrx";
 constexpr auto UNREVIEWED_LABEL = "unreviewed transaction";
+constexpr auto UNREVIEWED_TRX_SOURCE = "source";
+constexpr auto UNREVIEWED_TRX_CURSOR = "cursor";
 
 inline size_t
 createID() {

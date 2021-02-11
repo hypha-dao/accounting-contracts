@@ -460,11 +460,11 @@ const unreviewd_trx_1 = `
 	[
 			[
 					{
-							"label": "content_group_label",
-							"value": [
-									"string",
-									"details"
-							]
+						"label": "content_group_label",
+						"value": [
+								"string",
+								"details"
+						]
 					},
 					{
 						"label": "transaction_id",
@@ -530,10 +530,125 @@ const unreviewd_trx_1 = `
 						]
 					},
 					{
-						"label": "chain_id",
+						"label": "chainId",
 						"value": [
 							"string",
-							"ABCD"
+							"bip122:000000000019d6689c085ae165831e93"
+						]
+					},
+					{
+						"label": "source",
+						"value": [
+							"string",
+							"btc-treasury-1"
+						]
+					},
+					{
+						"label": "cursor",
+						"value": [
+							"string",
+							"18a835a0d11c91ab6abdd75bf7df1e67deada952b448193e1d4ad76c6e585dfd;0"
+						]
+					}
+		 ]
+	]
+}
+`
+
+const unreviewd_trx_2 = `
+{
+	"content_groups": 
+	[
+			[
+					{
+						"label": "content_group_label",
+						"value": [
+								"string",
+								"details"
+						]
+					},
+					{
+						"label": "transaction_id",
+						"value": [
+							"string",
+							"2"
+						]
+					},
+					{
+						"label": "from",
+						"value": [
+							"string",
+							"s120222ef34012fjk39fk290"
+						]
+					},
+					{
+						"label": "treasury_id",
+						"value": [
+							"string",
+							"btc-treasury-1"
+						]
+					},
+					{
+						"label": "to",
+						"value": [
+							"string",
+							"s12x12tref34012fjk39fk2a0"
+						]
+					},
+					{
+						"label": "quantity",
+						"value": [
+							"string",
+							"0.5"
+						]
+					},
+					{
+						"label": "currency",
+						"value": [
+							"string",
+							"BTC"
+						]
+					},
+					{
+						"label": "timestamp",
+						"value": [
+							"string",
+							"2021-04-12 21:10:22"
+						]
+					},
+					{
+						"label": "usd_value",
+						"value": [
+							"string",
+							"18000.00"
+						]
+					},
+					{
+						"label": "memo",
+						"value": [
+							"string",
+							"Monthly fee"
+						]
+					},
+					{
+						"label": "chainId",
+						"value": [
+							"string",
+							"bip122:000000000019d6689c085ae165831e93"
+						]
+					},
+					{
+						"label": "source",
+						"value": [
+							"string",
+							"btc-treasury-2"
+						]
+					},
+					{
+						"label": "cursor",
+						"value": [
+							"string",
+							"87a835a0d11c91ab6abdd75bf7df1e67deada952b448193e1d4ad76c6e585bbb;9"
 						]
 					}
 		 ]

@@ -536,6 +536,7 @@ func TestUnreviewedTransaction(t *testing.T) {
 
 	t.Run("Testing unreviewed transactions", func(t *testing.T) {
 
+		//Test trx_1
 		trxInfo, err := StrToContentGroups(unreviewd_trx_1)
 
 		assert.NilError(t, err)
@@ -544,9 +545,40 @@ func TestUnreviewedTransaction(t *testing.T) {
 
 		assert.NilError(t, err)
 
+		trxDoc, err := docgraph.GetLastDocument(env.ctx, &env.api, env.Accounting)
+
+		assert.NilError(t, err)
+
+		trxSource, err := trxDoc.GetContent("source");
+
+		assert.Equal(t, "btc-treasury-1", trxSource.String())
+
+		trxCursor, err := trxDoc.GetContent("cursor");
+		
+		assert.Equal(t, "18a835a0d11c91ab6abdd75bf7df1e67deada952b448193e1d4ad76c6e585dfd;0", trxCursor.String())
+
+		//TODO: 
+		//For some reason it's not reading LastCourse properly
+		//other fields are good
+
+		//lastCursor, err := accounting.GetLastCursorFromSource(env.ctx, &env.api, env.Accounting, trxSource.String())
+
+		//assert.NilError(t, err)
+		
+		//assert.Equal(t, lastCursor, trxCursor.String())
+
 		//Must give error since beta is not trusted account
 		_, err = accounting.UnreviewedTrx(env.ctx, &env.api, env.Accounting, beta, trxInfo)
 
 		assert.Assert(t, err != nil)
+
+		//Test trx_2
+		trxInfo, err = StrToContentGroups(unreviewd_trx_2)
+
+		assert.NilError(t, err)
+
+		_, err = accounting.UnreviewedTrx(env.ctx, &env.api, env.Accounting, tester, trxInfo)
+
+		assert.NilError(t, err)		
 	})
 }

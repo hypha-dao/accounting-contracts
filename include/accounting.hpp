@@ -4,9 +4,12 @@
 #include <vector>
 
 #include <eosio/eosio.hpp>
+#include <eosio/crypto.hpp>
 
 #include <document_graph/document_graph.hpp>
 #include <document_graph/content_wrapper.hpp>
+
+#include "eosio_utils.hpp"
 
 namespace hypha {
 
@@ -32,6 +35,21 @@ CONTRACT accounting : public contract {
   accounting( name self, name first_receiver, datastream<const char*> ds );
 
   DECLARE_DOCUMENT_GRAPH(accounting)
+
+  TABLE cursor
+  {
+    uint64_t key;
+    string source;
+    string last_cursor;
+
+    uint64_t primary_key() const { return key; }
+
+    checksum256 by_source() const { return util::hashString(source); }
+  };
+
+  using cursor_table = multi_index<"cursors"_n, cursor,
+                                   indexed_by<"bysource"_n, const_mem_fun<cursor, checksum256, &cursor::by_source>>
+                                   >;
 
   /**
   * Creates the root document (useful for testing)
@@ -98,6 +116,9 @@ CONTRACT accounting : public contract {
   void
   requireTrusted(name account);
   
+  /**
+  * Retreives the hash of the Unreviewed Transactions Bucket document
+  */
   checksum256
   getUnreviewedTrxBucket();
  private:

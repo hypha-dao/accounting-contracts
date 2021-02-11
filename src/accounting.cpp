@@ -200,6 +200,32 @@ accounting::newunrvwdtrx(name issuer, ContentGroups trx_info)
 
   auto bucketHash = getUnreviewedTrxBucket();
 
+  ContentWrapper cw(trx_info);
+
+  //TODO: Add check for mandatory fields
+
+  const string& trxSource = cw.getOrFail(DETAILS, UNREVIEWED_TRX_SOURCE)->getAs<string>();
+
+  const string& trxCursor = cw.getOrFail(DETAILS, UNREVIEWED_TRX_CURSOR)->getAs<string>();
+
+  cursor_table cursorsTbl(get_self(), get_self().value);
+
+  auto sourceIdx = cursorsTbl.get_index<"bysource"_n>();
+  
+  if (auto sourceIdxItr = sourceIdx.find(util::hashString(trxSource)); 
+      sourceIdxItr == sourceIdx.end()) {
+    cursorsTbl.emplace(get_self(), [&](cursor& c) {
+      c.key = cursorsTbl.available_primary_key();
+      c.source = trxSource;
+      c.last_cursor = trxCursor;
+    });
+  }
+  else {
+    sourceIdx.modify(sourceIdxItr, get_self(), [&](cursor& c) {
+      c.last_cursor = trxCursor;
+    });
+  }
+  
   Document newUnrvwdTrx(get_self(), issuer, std::move(trx_info));
 
   Edge(get_self(), issuer, bucketHash, newUnrvwdTrx.getHash(), name(UNREVIEWED_EDGE));

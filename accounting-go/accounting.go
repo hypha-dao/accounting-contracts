@@ -2,9 +2,13 @@ package accounting
 
 import (
 	"context"
+	"fmt"
+
+	"crypto/sha256"
+	"encoding/hex"
 
 	eostest "github.com/digital-scarcity/eos-go-test"
-	"github.com/eoscanada/eos-go"
+	eos "github.com/eoscanada/eos-go"
 	"github.com/hypha-dao/document/docgraph"
 )
 
@@ -34,6 +38,12 @@ type remSetting struct {
 
 type trustAccount struct {
 	Account eos.AccountName `json: "account`
+}
+
+type Cursor struct {
+	Key 				uint64 				`json: "key"`
+	Source 			string 				`json: "source"`
+	LastCursor 	string 				`json: "last_cursor"`
 }
 
 func AddLedger(ctx context.Context, api *eos.API, contract, creator eos.AccountName, ledger []docgraph.ContentGroup) (string, error) {
@@ -169,4 +179,69 @@ func UnreviewedTrx(ctx context.Context, api *eos.API, contract, issuer eos.Accou
 	}}
 
 	return eostest.ExecTrx(ctx, api, actions)
+}
+
+func GetLastCursor(ctx context.Context, api *eos.API, contract eos.AccountName) (string, error) {
+	
+	var request eos.GetTableRowsRequest
+	request.Code = string(contract)
+	request.Scope = string(contract)
+	request.Table = "cursors"
+	request.Index = "2"
+	request.KeyType = "sha256"
+	request.Limit = 1
+	request.Reverse = true
+	request.JSON = true
+	response, err := api.GetTableRows(ctx, request)
+	if err != nil {
+		return "", fmt.Errorf("get table rows: %v", err)
+	}
+
+	var cursors []Cursor
+
+	err = response.JSONToStructs(&cursors)
+	if err != nil {
+		return "", fmt.Errorf("json to structs: %v", err)
+	}
+
+	if len(cursors) == 0 {
+		return "", fmt.Errorf("cursor not found: %v", err)
+	}
+
+	return cursors[0].LastCursor, nil
+}
+
+func GetCursorFromSource(ctx context.Context, api *eos.API, contract eos.AccountName, source string) (string, error) {
+	
+	hashBytes := sha256.Sum256([]byte(source))
+	hashStr := hex.EncodeToString(hashBytes[:]) 
+
+	var request eos.GetTableRowsRequest
+	request.Code = string(contract)
+	request.Scope = string(contract)
+	request.Table = "cursors"
+	request.Index = "2"
+	request.KeyType = "sha256"
+	request.LowerBound = hashStr
+	request.UpperBound = hashStr
+	request.Limit = 1
+	request.Reverse = true
+	request.JSON = true
+	response, err := api.GetTableRows(ctx, request)
+	if err != nil {
+		return "", fmt.Errorf("get table rows %v: %v", hashStr, err)
+	}
+
+	var cursors []Cursor
+
+	err = response.JSONToStructs(&cursors)
+	if err != nil {
+		return "", fmt.Errorf("json to structs %v: %v", hashStr, err)
+	}
+
+	if len(cursors) == 0 {
+		return "", fmt.Errorf("cursor not found %v: %v", hashStr, err)
+	}
+
+	return cursors[0].LastCursor, nil
 }
