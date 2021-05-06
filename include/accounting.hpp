@@ -53,6 +53,33 @@ CONTRACT accounting : public contract {
                                    indexed_by<"bysource"_n, const_mem_fun<cursor, checksum256, &cursor::by_source>>
                                    >;
 
+  TABLE exchange_rate
+  {
+    uint64_t id;
+    time_point date;
+    symbol_code from_currency;
+    symbol_code to_currency;
+    checksum256 trx_origin;
+    float rate;
+    bool invalidated;
+
+    EOSLIB_SERIALIZE(exchange_rate, (id)(date)(from_currency)(to_currency)(trx_origin)(rate)(invalidated))
+
+    uint64_t primary_key() const { return id; }
+    checksum256 by_trx_origin() const { return trx_origin; }
+  };
+
+  using exchange_rates_table = multi_index<"exrates"_n, exchange_rate,
+                                           indexed_by<name("trxorigin"), const_mem_fun<exchange_rate, checksum256, &exchange_rate::by_trx_origin>>>;
+
+  TABLE currency
+  {
+    symbol_code code;
+    uint64_t primary_key() const { return code.raw(); }
+  };
+
+  using currencies_table = multi_index<"currencies"_n, currency>;
+
   /**
   * Creates the root document (useful for testing)
   */ 
@@ -80,17 +107,37 @@ CONTRACT accounting : public contract {
   ACTION
   newunrvwdtrx(name issuer, ContentGroups trx_info);
 
+  /**
+  * Adds a setting in the settings document or replaces it if the setting already
+  * exits
+  */
   ACTION
   setsetting(string setting, Content::FlexValue value);
 
+  /**
+  * Deletes a setting from the settings document
+  */ 
   ACTION
   remsetting(string setting);
   
+  /**
+  * Adds an account to the trusted accounts group. Necesary to trigger unrvwd trx action
+  */  
   ACTION
   addtrustacnt(name account);
 
+  /**
+  * Remove an account from the trusted accounts group.
+  */
   ACTION
   remtrustacnt(name account);
+
+  /**
+  * Clears the unrvwdtrxs from the graph
+  */
+  ACTION
+  clearunrvwd(int64_t max_removable_trx);
+
   /**
   * Gets the root document of the graph
   */

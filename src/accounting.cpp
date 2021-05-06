@@ -1,8 +1,11 @@
 #include "accounting.hpp"
 
+#include <eosio/system.hpp>
+
 #include <algorithm>
 
 #include <document_graph/util.hpp>
+#include <logger/logger.hpp>
 
 #include "constants.hpp"
 #include "container_utils.hpp"
@@ -43,7 +46,7 @@ accounting::addledger(name creator, ContentGroups& ledger_info)
   //Create default Equity
   Document equityAcc(get_self(), creator, getEquityAccount(ledger.getHash()));
 
-  //Create default Equity::OpeningsAccount
+  // //Create default Equity::OpeningsAccount
   Document openingsAcc(get_self(), creator, getOpeningsAccount(equityAcc.getHash()));
   
   parent(creator, ledger.getHash(), equityAcc.getHash());
@@ -56,13 +59,15 @@ accounting::addledger(name creator, ContentGroups& ledger_info)
 ACTION
 accounting::create(name creator, ContentGroups& account_info)
 { 
+  TRACE_FUNCTION()
+
   require_auth(get_self());
 
   ContentWrapper contentWrap(account_info);
 
   auto [dIdx, details] = contentWrap.getGroup("details");
 
-  check(details, "Details group was expected but not found in account info");
+  EOS_CHECK(details, "Details group was expected but not found in account info");
   
   auto parentHash = contentWrap.getOrFail(dIdx, PARENT_ACCOUNT).second->getAs<checksum256>();
 
@@ -76,7 +81,7 @@ accounting::create(name creator, ContentGroups& account_info)
 
   TableWrapper<document_table> docs(get_self(), get_self().value);
 
-  check(docs.contains_by<"idhash"_n>(parentHash), 
+  EOS_CHECK(docs.contains_by<"idhash"_n>(parentHash), 
         "The parent document doesn't exists: " + readableHash(parentHash));
   
   //Check if there isn't already an account with the same name
@@ -88,7 +93,7 @@ accounting::create(name creator, ContentGroups& account_info)
 
     auto name = cg.getOrFail("details", ACCOUNT_NAME)->getAs<string>();
 
-    check(util::toLowerCase(std::move(name)) != util::toLowerCase(accountName), 
+    EOS_CHECK(util::toLowerCase(std::move(name)) != util::toLowerCase(accountName), 
           "There is already an account with name: " + accountName);
   }
 
@@ -109,10 +114,6 @@ accounting::create(name creator, ContentGroups& account_info)
   if (auto [idx, balances] = contentWrap.getGroup(OPENING_BALANCES);
       balances) {
 
-    ContentGroups transaction{getTrxHeader("Opening Balances", 
-                                           current_time_point(),
-                                           ledger)};
-
     auto openingBalances = getOpeningsHash(ledger);
 
     for (const auto& content : *balances) {
@@ -120,31 +121,37 @@ accounting::create(name creator, ContentGroups& account_info)
       auto& [label, value] = content;
 
       if (util::containsPrefix(label, OPENING_BALANCE_PREFIX)) {
-        
+               
         asset componentAmount = content.getAs<asset>();
        
-        check(componentAmount.is_valid(), 
+        EOS_CHECK(componentAmount.is_valid(), 
               "Invalid asset: " + componentAmount.to_string());
 
-        check(isCurrencySupported(componentAmount.symbol), 
+        EOS_CHECK(isCurrencySupported(componentAmount.symbol), 
               string("Unsupported currency: ") + componentAmount.symbol.code().to_string());
 
+        auto memo = util::to_str("Opening Balance: ", componentAmount.symbol.code());
+
+        ContentGroups transaction{getTrxHeader(memo, 
+                                  current_time_point(),
+                                  ledger)};
+
         transaction.emplace_back(getTrxComponent(account.getHash(), 
-                                                 "Opening Balance",
+                                                 memo,
                                                  componentAmount));
 
         componentAmount.set_amount(-componentAmount.amount);
 
         transaction.emplace_back(getTrxComponent(openingBalances, 
-                                                 "Opening Balance",
+                                                 memo,
                                                  componentAmount));
+
+        transact(get_self(), transaction);
       }
       else if (label != CONTENT_GROUP_LABEL) {
-        check(false, "Wrong format for opening_balances account [" + label + "]");
+        EOS_CHECK(false, "Wrong format for opening_balances account [" + label + "]");
       }
     }
-
-    transact(get_self(), transaction);
   }
 }
 
@@ -164,14 +171,71 @@ accounting::create(name creator, ContentGroups& account_info)
 ACTION
 accounting::transact(name issuer, ContentGroups& trx_info)
 {
+  TRACE_FUNCTION()
+
   require_auth(issuer);
 
   Transaction trx(trx_info);
 
-  trx.verifyBalanced();
+  std::vector<asset> assets = trx.verifyBalanced();
+
+  TableWrapper<currencies_table> currencies(get_self(), get_self().value);
+
+  for (auto& a : assets) {
+    if (!currencies.contains(a.symbol.code().raw())) {
+      currencies.insert(get_self(), [a](currency& c){
+        c.code = a.symbol.code();
+      });
+    }
+  }
+
+  asset fromCurrency;
+  asset toCurrency;
+
+  if (assets.size() == 2) {
+    fromCurrency = assets[0];
+    toCurrency = assets[1];
+  }
+  else if (assets.size() == 1) {
+    fromCurrency = toCurrency = assets[0];
+  }
+  else {
+    EOS_CHECK(
+      false, 
+      "Assets size has to be 2 or 1, actual:" + std::to_string(assets.size())
+    );
+  }
 
   Document trxDoc(get_self(), issuer, { trx.getDetails(), 
                                         getSystemGroup("transaction", "trx") });
+
+  TableWrapper<exchange_rates_table> exrates(get_self(), get_self().value);
+
+  EOS_CHECK(
+    !exrates.contains_by<"trxorigin"_n>(trxDoc.getHash()),
+    util::to_str("There is another exchange rate with the same transaction origin: ",
+                 readableHash(trxDoc.getHash()))
+  );
+
+  EOS_CHECK(
+    (fromCurrency.amount * toCurrency.amount) != 0 || 
+    (fromCurrency.amount == 0 && toCurrency.amount == 0) ||
+    //This is an special case for implied assets. Since the assets is invalid 
+    //its code is 0
+    (fromCurrency.symbol.raw() == 0),
+    util::to_str("Zero sum error. Both assets must be either 0 or different than 0. [", 
+                 fromCurrency, toCurrency, "]")
+  );
+
+  exrates.insert(get_self(), [&](exchange_rate& exrate){
+    exrate.id = exrates.get_next_pk();
+    exrate.date = current_time_point();
+    exrate.from_currency = fromCurrency.symbol.code();
+    exrate.to_currency = toCurrency.symbol.code();
+    exrate.trx_origin = trxDoc.getHash();
+    exrate.invalidated = false;
+    exrate.rate = fromCurrency.amount == 0 ? 1.f : util::calculateRate(fromCurrency, toCurrency);
+  });
 
   for (auto& compnt : trx.getComponents()) {
     Document compntAcct(get_self(), compnt.account);
@@ -254,7 +318,7 @@ accounting::addtrustacnt(name account)
 {
   require_auth(get_self());
 
-  check(is_account(account), "Account must exist before adding it");
+  EOS_CHECK(is_account(account), "Account must exist before adding it");
 
   Settings& settings = Settings::instance();
   
@@ -270,7 +334,7 @@ accounting::addtrustacnt(name account)
     settings.add(acnt.label, acnt.value, TRUSTED_ACCOUNTS_GROUP);
   }
   else {
-    check(false, "Account is trusted already");
+    EOS_CHECK(false, "Account is trusted already");
   }
 }
 
@@ -282,6 +346,34 @@ accounting::remtrustacnt(name account)
   Settings& settings = Settings::instance();
   settings.remove(Content(TRUSTED_ACCOUNT_LABEL, account), 
                   TRUSTED_ACCOUNTS_GROUP);
+}
+
+ACTION 
+accounting::clearunrvwd(int64_t max_removable_trx)
+{
+  require_auth(get_self());
+  
+  std::pair<bool, Edge> edgePair;
+
+  //int64_t maxToRemove = MAX_REMOVABLE_DOCS;
+  int64_t maxToRemove = max_removable_trx;
+
+  while ((edgePair = Edge::getIfExists(get_self(), getUnreviewedTrxBucket(), name(UNREVIEWED_EDGE)),
+         edgePair.first) && maxToRemove--) {
+    Edge& edge = edgePair.second;
+    //Erase document and its edges
+    m_documentGraph.eraseDocument(edge.to_node, true);
+  }
+
+  cursor_table cursorsTbl(get_self(), get_self().value);
+
+  auto it = cursorsTbl.begin();
+
+  maxToRemove = max_removable_trx;
+
+  while (it != cursorsTbl.end() && maxToRemove--) {
+    it = cursorsTbl.erase(it);
+  }
 }
 
 void
@@ -305,7 +397,7 @@ accounting::requireTrusted(name account)
   }
   //else no trusted accounts
 
-  check(false, "Only trusted accounts can perform this action");
+  EOS_CHECK(false, "Only trusted accounts can perform this action");
 }
 
 checksum256 
@@ -334,7 +426,7 @@ accounting::getUnreviewedTrxBucket()
     return unreviewedTrxBucket.getHash();
   }
   else {
-    check(edges.size() == 1, "There are more than 1 unreviewed transactions bucket");
+    EOS_CHECK(edges.size() == 1, "There are more than 1 unreviewed transactions bucket");
 
     return edges[0].to_node;
   }  
@@ -418,6 +510,7 @@ accounting::getTrxComponent(checksum256 account,
   return {
     Content{CONTENT_GROUP_LABEL, std::move(label)},
     Content{COMPONENT_ACCOUNT, account},
+    Content{COMPONENT_DATE, current_time_point()},
     Content{COMPONENT_MEMO, memo},
     Content{COMPONENT_AMMOUNT, amount}
   };

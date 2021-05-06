@@ -35,7 +35,7 @@ class Transaction
     string memo;
   };
 
-  void
+  std::vector<asset>
   verifyBalanced();
 
   inline const vector<Component>&

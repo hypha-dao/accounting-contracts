@@ -1,6 +1,11 @@
 #pragma once
 
 #include <eosio/eosio.hpp>
+#include <eosio_utils.hpp>
+
+
+
+#include <logger/logger.hpp>
 
 namespace hypha {
 
@@ -24,7 +29,14 @@ class TableWrapper
 
   template<name::raw Index, class U>
   inline auto
-  contains_by(const U& at)
+  find_by(const U& at) const
+  {
+    return index_by<Index>().find(at);
+  }
+
+  template<name::raw Index, class U>
+  inline auto
+  contains_by(const U& at) const
   {
     return find_by<Index>(at) != end_by<Index>();
   }
@@ -45,13 +57,15 @@ class TableWrapper
   inline decltype(auto)
   get_by(const U& at, const char* error = "unable to find key") const
   {
-    return index_by<Index>().get(at, error);
+    EOS_CHECK(contains_by<Index>(at), util::to_str(error, " [", at, "]").c_str())
+    return index_by<Index>().get(at);
   }
 
   inline decltype(auto)
-  get(uint64_t index, const char* error = "unable to find key") const
+  get(uint64_t index, const char* error = "unable to find key at index") const
   {
-    return m_table.get(index, error);
+    EOS_CHECK(contains(index), util::to_str(error, " [", index, "]").c_str());
+    return m_table.get(index);
   }
 
   template<name::raw Index>
@@ -95,6 +109,11 @@ class TableWrapper
   {
     m_table.emplace(payer, emplacer);
   }
+
+  uint64_t get_next_pk() const {
+    return m_table.available_primary_key();
+  }
+  
  private:
   T m_table; 
 };

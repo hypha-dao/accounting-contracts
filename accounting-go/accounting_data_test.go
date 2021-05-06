@@ -162,36 +162,7 @@ const transaction_test_implied = `
 							]
 					}
 		 ],
-		 [
-					{
-						"label": "content_group_label",
-						"value": [
-								"string",
-								"component"
-						]
-					},
-					{
-						"label": "memo",
-						"value": [
-							"string",
-							"New marketing campain"
-						]
-					},
-					{
-						"label": "account_a",
-						"value": [
-							"string",
-							"abc"
-						]
-					},
-					{
-							"label": "amount",
-							"value": [
-									"asset",
-									"1000.00 USD"
-							]
-					}
-		 ],
+		 
 		 [
 					{
 						"label": "content_group_label",
@@ -655,3 +626,70 @@ const unreviewd_trx_2 = `
 	]
 }
 `
+
+
+/*
+//Trx data 
+[
+		[
+				{
+						"label": "content_group_label",
+						"value": [
+								"string",
+								"details"
+						]
+				},
+				{
+					"label": "parent_account",
+						"value": [
+								"checksum256",
+								"dd626045e7d2fed6c94cae9461a7e06c195f85257d29b8062ff6b7650855173f"
+						]
+				},
+				{
+					"label": "ledger_account",
+						"value": [
+								"checksum256",
+								"dd626045e7d2fed6c94cae9461a7e06c195f85257d29b8062ff6b7650855173f"
+						]
+				},
+				{
+						"label": "account_name",
+						"value": [
+								"string",
+								"Income"
+						]
+				},
+				{
+						"label": "account_type",
+						"value": [
+								"int64",
+								1
+						]
+				}
+		],
+		[
+				{
+						"label": "content_group_label",
+						"value": [
+								"string",
+								"opening_balances"
+							]
+				},
+				{
+						"label": "opening_balance_usd",
+						"value": [
+								"asset",
+								"2000.00 USD"
+						]
+				},
+				{
+							"label": "opening_balance_btc",
+							"value": [
+									"asset",
+									"0.50000000 BTC"
+							]
+				}
+		]
+]
+*/

@@ -260,14 +260,14 @@ func impliedTransacTest(t *testing.T, ledgerDoc, expensesAcc, incomeAcc, mktingA
 		trxDoc := docgraph.Document{}
 		trxDoc.ContentGroups = trxCgs
 
-		err = ReplaceContent(&trxDoc, "account_a", "account",
-			&docgraph.FlexValue{
-				BaseVariant: eos.BaseVariant{
-					TypeID: docgraph.GetVariants().TypeID("checksum256"),
-					Impl:   mktingAcc.Hash,
-				}})
+		// err = ReplaceContent(&trxDoc, "account_a", "account",
+		// 	&docgraph.FlexValue{
+		// 		BaseVariant: eos.BaseVariant{
+		// 			TypeID: docgraph.GetVariants().TypeID("checksum256"),
+		// 			Impl:   mktingAcc.Hash,
+		// 		}})
 
-		assert.NilError(t, err)
+		// assert.NilError(t, err)
 
 		err = ReplaceContent(&trxDoc, "account_b", "account", &docgraph.FlexValue{
 			BaseVariant: eos.BaseVariant{
@@ -549,18 +549,18 @@ func TestUnreviewedTransaction(t *testing.T) {
 
 		assert.NilError(t, err)
 
-		trxSource, err := trxDoc.GetContent("source");
+		trxSource, err := trxDoc.GetContent("source")
 
 		assert.Equal(t, "btc-treasury-1", trxSource.String())
 
-		trxCursor, err := trxDoc.GetContent("cursor");
-		
+		trxCursor, err := trxDoc.GetContent("cursor")
+
 		assert.Equal(t, "18a835a0d11c91ab6abdd75bf7df1e67deada952b448193e1d4ad76c6e585dfd;0", trxCursor.String())
 
 		lastCursor, err := accounting.GetCursorFromSource(env.ctx, &env.api, env.Accounting, trxSource.String())
 
 		assert.NilError(t, err)
-		
+
 		assert.Equal(t, lastCursor, trxCursor.String())
 
 		//Must give error since beta is not trusted account
@@ -581,18 +581,18 @@ func TestUnreviewedTransaction(t *testing.T) {
 
 		assert.NilError(t, err)
 
-		trxSource, err = trxDoc.GetContent("source");
+		trxSource, err = trxDoc.GetContent("source")
 
 		assert.Equal(t, "btc-treasury-2", trxSource.String())
 
-		trxCursor, err = trxDoc.GetContent("cursor");
-		
+		trxCursor, err = trxDoc.GetContent("cursor")
+
 		assert.Equal(t, "87a835a0d11c91ab6abdd75bf7df1e67deada952b448193e1d4ad76c6e585bbb;9", trxCursor.String())
 
 		lastCursor, err = accounting.GetCursorFromSource(env.ctx, &env.api, env.Accounting, trxSource.String())
 
 		assert.NilError(t, err)
-		
+
 		assert.Equal(t, lastCursor, trxCursor.String())
 
 		//Test trx_2 with different cursor, it should override the trx_2 source
@@ -612,7 +612,7 @@ func TestUnreviewedTransaction(t *testing.T) {
 		lastCursor, err = accounting.GetCursorFromSource(env.ctx, &env.api, env.Accounting, trxSource.String())
 
 		assert.NilError(t, err)
-		
+
 		assert.Equal(t, lastCursor, ";xabc123_")
 	})
 }

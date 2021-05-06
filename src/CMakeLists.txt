@@ -5,6 +5,9 @@ find_package(eosio.cdt)
 
 set (DOC_GRAPH_DIR ${CMAKE_SOURCE_DIR}/../document-graph)
 
+# Activate Logging
+add_compile_definitions(USE_LOGGING)
+
 add_contract( accounting accounting 
 accounting.cpp
 transaction.cpp
@@ -12,6 +15,7 @@ settings.cpp
 ${DOC_GRAPH_DIR}/src/document_graph/util.cpp
 ${DOC_GRAPH_DIR}/src/document_graph/content.cpp
 ${DOC_GRAPH_DIR}/src/document_graph/content_wrapper.cpp
+${DOC_GRAPH_DIR}/src/logger/logger.cpp
 ${DOC_GRAPH_DIR}/src/document_graph/document.cpp
 ${DOC_GRAPH_DIR}/src/document_graph/document_graph.cpp
 ${DOC_GRAPH_DIR}/src/document_graph/edge.cpp

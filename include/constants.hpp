@@ -23,6 +23,7 @@ constexpr auto TRX_LEDGER = "trx_ledger";
 constexpr auto COMPONENT_AMMOUNT = "amount";
 constexpr auto COMPONENT_MEMO = "memo";
 constexpr auto COMPONENT_ACCOUNT = "account";
+constexpr auto COMPONENT_DATE = "create_date";
 constexpr auto SETTINGS = "settings";
 constexpr auto UPDATE_DATE = "update_date";
 constexpr auto SETTINGS_DATA = "settings_data";
@@ -35,6 +36,8 @@ constexpr auto UNREVIEWED_EDGE = "unrvwdtrx";
 constexpr auto UNREVIEWED_LABEL = "unreviewed transaction";
 constexpr auto UNREVIEWED_TRX_SOURCE = "source";
 constexpr auto UNREVIEWED_TRX_CURSOR = "cursor";
+
+constexpr auto MAX_REMOVABLE_DOCS = int64_t(100);
 
 inline size_t
 createID() {
