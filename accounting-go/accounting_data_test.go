@@ -25,6 +25,13 @@ const ledger_tester = `
 							"string",
 							"common"
 					]
+				},
+				{
+					"label": "create_openings_account",
+					"value": [
+							"int64",
+							"1"
+					]
 				}
 			]
 	]
@@ -61,6 +68,22 @@ const transaction_test_1 = `
 							"value": [
 									"string",
 									"Test transaction 1"
+							]
+					}
+		 ],
+		 [
+					{
+							"label": "content_group_label",
+							"value": [
+									"string",
+									"metadata"
+							]
+					},
+					{
+							"label": "check_balanced",
+							"value": [
+									"int64",
+									"0"
 							]
 					}
 		 ],
@@ -627,9 +650,8 @@ const unreviewd_trx_2 = `
 }
 `
 
-
 /*
-//Trx data 
+//Trx data
 [
 		[
 				{
@@ -643,14 +665,14 @@ const unreviewd_trx_2 = `
 					"label": "parent_account",
 						"value": [
 								"checksum256",
-								"dd626045e7d2fed6c94cae9461a7e06c195f85257d29b8062ff6b7650855173f"
+								"4c807227a2c9d7ebe5b22050f6d3f0d4318fcb57904e19e18746ae0309024481"
 						]
 				},
 				{
 					"label": "ledger_account",
 						"value": [
 								"checksum256",
-								"dd626045e7d2fed6c94cae9461a7e06c195f85257d29b8062ff6b7650855173f"
+								"4c807227a2c9d7ebe5b22050f6d3f0d4318fcb57904e19e18746ae0309024481"
 						]
 				},
 				{

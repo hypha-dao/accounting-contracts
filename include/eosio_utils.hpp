@@ -30,5 +30,16 @@ calculateRate(eosio::asset from, eosio::asset to)
   return static_cast<float>(fromTotal/toTotal);
 }
 
+//Helper method to clean all the elements of a table
+template<class T> void
+cleanuptable(eosio::name scope)
+{
+  T table(scope, scope.value);
+  for (auto it = table.begin(); it != table.end();) {
+    it = table.erase(it);
+  }
 }
+
+}
+
 }

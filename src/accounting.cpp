@@ -26,6 +26,8 @@ accounting::accounting(name self, name first_receiver, datastream<const char*> d
 ACTION 
 accounting::createroot()
 {
+  TRACE_FUNCTION()
+
   require_auth(get_self());
   getRoot();
 }
@@ -33,25 +35,31 @@ accounting::createroot()
 ACTION
 accounting::addledger(name creator, ContentGroups& ledger_info)
 {
+  TRACE_FUNCTION()
+
   require_auth(get_self());
 
   ContentWrapper cw(ledger_info);
 
-  auto&& ledgerName = cw.getOrFail(DETAILS, "name")->getAs<string>();
-
+  auto& ledgerName = cw.getOrFail(DETAILS, "name")->getAs<string>();
+  
   ledger_info.push_back(getSystemGroup(ledgerName.c_str(), "ledger"));
+
+  auto withOpeningsAccount = cw.getOrFail(DETAILS, "create_openings_account")->getAs<int64_t>();
 
   Document ledger(get_self(), creator, std::move(ledger_info));
 
-  //Create default Equity
-  Document equityAcc(get_self(), creator, getEquityAccount(ledger.getHash()));
+  if (withOpeningsAccount == 1) {
+    //Create default Equity
+    Document equityAcc(get_self(), creator, getEquityAccount(ledger.getHash()));
 
-  // //Create default Equity::OpeningsAccount
-  Document openingsAcc(get_self(), creator, getOpeningsAccount(equityAcc.getHash()));
-  
-  parent(creator, ledger.getHash(), equityAcc.getHash());
+    // //Create default Equity::OpeningsAccount
+    Document openingsAcc(get_self(), creator, getOpeningsAccount(equityAcc.getHash()));
+    
+    parent(creator, ledger.getHash(), equityAcc.getHash());
 
-  parent(creator, equityAcc.getHash(), openingsAcc.getHash());
+    parent(creator, equityAcc.getHash(), openingsAcc.getHash());
+  }
 
   Edge(get_self(), creator, getRoot().getHash(), ledger.getHash(), name("ledger"));
 }
@@ -65,7 +73,7 @@ accounting::create(name creator, ContentGroups& account_info)
 
   ContentWrapper contentWrap(account_info);
 
-  auto [dIdx, details] = contentWrap.getGroup("details");
+  auto [dIdx, details] = contentWrap.getGroup(DETAILS);
 
   EOS_CHECK(details, "Details group was expected but not found in account info");
   
@@ -91,7 +99,7 @@ accounting::create(name creator, ContentGroups& account_info)
 
     ContentWrapper cg(account.getContentGroups());
 
-    auto name = cg.getOrFail("details", ACCOUNT_NAME)->getAs<string>();
+    auto name = cg.getOrFail(DETAILS, ACCOUNT_NAME)->getAs<string>();
 
     EOS_CHECK(util::toLowerCase(std::move(name)) != util::toLowerCase(accountName), 
           "There is already an account with name: " + accountName);
@@ -100,7 +108,7 @@ accounting::create(name creator, ContentGroups& account_info)
   //Create the account
   Document account(get_self(), creator, { 
     ContentGroup{
-      Content{CONTENT_GROUP_LABEL, "details"},
+      Content{CONTENT_GROUP_LABEL, DETAILS},
       Content{ACCOUNT_NAME, accountName},
       Content{ACCOUNT_TYPE, accountType},
       Content{PARENT_ACCOUNT, parentHash}
@@ -243,7 +251,7 @@ accounting::transact(name issuer, ContentGroups& trx_info)
     Document compntDoc(get_self(), issuer, { getTrxComponent(compnt.account, 
                                                              compnt.memo, 
                                                              compnt.amount,
-                                                             "details"),
+                                                             DETAILS),
                                              getSystemGroup("component", "component") });
 
     parent(issuer, trxDoc.getHash(), compntDoc.getHash(), "component", "transaction");
@@ -257,6 +265,8 @@ accounting::transact(name issuer, ContentGroups& trx_info)
 ACTION
 accounting::newunrvwdtrx(name issuer, ContentGroups trx_info) 
 {
+  TRACE_FUNCTION()
+  
   require_auth(issuer);
   
   //Check if account is trusted
@@ -376,6 +386,51 @@ accounting::clearunrvwd(int64_t max_removable_trx)
   }
 }
 
+/**
+* Group Label: details
+* documents: int
+* edges: int
+* exchange_rates: int
+* currencies: int
+* cursors: int
+*/
+ACTION
+accounting::clean(ContentGroups& tables) 
+{
+  require_auth(get_self());
+
+  ContentWrapper cw(tables);
+
+  if (cw.getOrFail(DETAILS, "documents")->getAs<int64_t>() == 1) {
+    util::cleanuptable<Document::document_table>(get_self());
+  }
+
+  if (cw.getOrFail(DETAILS, "edges")->getAs<int64_t>() == 1) {
+    util::cleanuptable<Edge::edge_table>(get_self());
+  }
+
+  if (cw.getOrFail(DETAILS, "exchange_rates")->getAs<int64_t>() == 1) {
+    util::cleanuptable<exchange_rates_table>(get_self()); 
+  }
+
+  if (cw.getOrFail(DETAILS, "currencies")->getAs<int64_t>() == 1) {
+    util::cleanuptable<currencies_table>(get_self()); 
+  }
+
+  if (cw.getOrFail(DETAILS, "cursors")->getAs<int64_t>() == 1) {
+    util::cleanuptable<cursor_table>(get_self()); 
+  }
+
+  if (cw.getOrFail(DETAILS, "unreviewedtrx")->getAs<int64_t>() == 1) {
+    eosio::action(
+      eosio::permission_level{get_self(), "active"_n},
+      get_self(),
+      "clearunrvwd"_n,
+      std::make_tuple(int64_t(100))
+    ).send();
+  }
+}
+
 void
 accounting::requireTrusted(name account)
 {
@@ -461,7 +516,7 @@ ContentGroups
 accounting::getEquityAccount(checksum256 parent)
 {
   ContentGroup details {
-    Content(CONTENT_GROUP_LABEL, "details"),
+    Content(CONTENT_GROUP_LABEL, DETAILS),
     Content(ACCOUNT_NAME, "Equity"),
     Content(ACCOUNT_TYPE, ACCOUNT_GROUP::kEquity),
     Content(PARENT_ACCOUNT, parent)

@@ -88,6 +88,8 @@ CONTRACT accounting : public contract {
 
   /**
   * Adds a ledger account to the graph
+  *
+  * 
   */
   ACTION
   addledger(name creator, ContentGroups& ledger_info);
@@ -137,6 +139,12 @@ CONTRACT accounting : public contract {
   */
   ACTION
   clearunrvwd(int64_t max_removable_trx);
+
+  /**
+  * Clears the data
+  */
+  ACTION
+  clean(ContentGroups& tables);
 
   /**
   * Gets the root document of the graph
