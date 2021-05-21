@@ -308,6 +308,8 @@ accounting::newunrvwdtrx(name issuer, ContentGroups trx_info)
 ACTION
 accounting::setsetting(string setting, Content::FlexValue value)
 {
+  TRACE_FUNCTION()
+
   require_auth(get_self());
 
   Settings& settings = Settings::instance();
@@ -317,6 +319,8 @@ accounting::setsetting(string setting, Content::FlexValue value)
 ACTION
 accounting::remsetting(string setting)
 {
+  TRACE_FUNCTION()
+
   require_auth(get_self());
 
   Settings& settings = Settings::instance();
@@ -326,6 +330,8 @@ accounting::remsetting(string setting)
 ACTION
 accounting::addtrustacnt(name account)
 {
+  TRACE_FUNCTION()
+
   require_auth(get_self());
 
   EOS_CHECK(is_account(account), "Account must exist before adding it");
@@ -351,6 +357,8 @@ accounting::addtrustacnt(name account)
 ACTION
 accounting::remtrustacnt(name account)
 {
+  TRACE_FUNCTION()
+
   require_auth(get_self());
 
   Settings& settings = Settings::instance();
@@ -361,6 +369,8 @@ accounting::remtrustacnt(name account)
 ACTION 
 accounting::clearunrvwd(int64_t max_removable_trx)
 {
+  TRACE_FUNCTION()
+
   require_auth(get_self());
   
   std::pair<bool, Edge> edgePair;
@@ -397,6 +407,8 @@ accounting::clearunrvwd(int64_t max_removable_trx)
 ACTION
 accounting::clean(ContentGroups& tables) 
 {
+  TRACE_FUNCTION()
+
   require_auth(get_self());
 
   ContentWrapper cw(tables);
@@ -434,6 +446,8 @@ accounting::clean(ContentGroups& tables)
 void
 accounting::requireTrusted(name account)
 {
+  TRACE_FUNCTION()
+
   Settings& settings = Settings::instance();
   
   auto cw = settings.getWrapper();
@@ -458,6 +472,8 @@ accounting::requireTrusted(name account)
 checksum256 
 accounting::getUnreviewedTrxBucket() 
 {
+  TRACE_FUNCTION()
+  
   auto rootHash = getRoot().getHash();
   name edgeName = name(UNREVIEWED_BUCKET_EDGE);
   

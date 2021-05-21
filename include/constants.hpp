@@ -30,12 +30,12 @@ constexpr auto SETTINGS_DATA = "settings_data";
 constexpr auto TRUSTED_ACCOUNTS_GROUP = "trusted_accounts";
 constexpr auto TRUSTED_ACCOUNT_LABEL = "trusted_account";
 constexpr auto SETTINGS_EDGE = name("settings");
-constexpr auto UNREVIEWED_BUCKET_EDGE = "unrvwdbucket";
-constexpr auto UNREVIEWED_BUCKET_LABEL = "unreviewed transtaction bucket";
-constexpr auto UNREVIEWED_EDGE = "unrvwdtrx";
-constexpr auto UNREVIEWED_LABEL = "unreviewed transaction";
-constexpr auto UNREVIEWED_TRX_SOURCE = "source";
-constexpr auto UNREVIEWED_TRX_CURSOR = "cursor";
+constexpr auto EVENT_BUCKET_EDGE = "eventbucket";
+constexpr auto EVENT_BUCKET_LABEL = "Events bucket";
+constexpr auto EVENT_EDGE = "event";
+constexpr auto EVENT_LABEL = "Event";
+constexpr auto EVENT_SOURCE = "source";
+constexpr auto EVENT_CURSOR = "cursor";
 
 constexpr auto MAX_REMOVABLE_DOCS = int64_t(100);
 
