@@ -2,6 +2,10 @@
 
 #include <map>
 
+#include <document_graph/document_graph.hpp>
+
+#include <accounting.hpp>
+
 #include <logger/logger.hpp>
 
 namespace hypha {
@@ -14,14 +18,20 @@ Transaction::Transaction(ContentGroups& trxInfo)
 
   ContentWrapper trx(trxInfo);
 
-  auto [hIdx, headerGroup] = trx.getGroup("header");
+  auto [hIdx, detailsGroup] = trx.getGroup(DETAILS);
 
-  EOS_CHECK(headerGroup, "Missing 'header' group in transaction document");
+  EOS_CHECK(detailsGroup, "Missing 'details' group in transaction document");
 
-  //Check all the header fields are present
+  //Check all the details fields are present
   m_memo = trx.getOrFail(hIdx, TRX_MEMO).second->getAs<string>();
   m_date = trx.getOrFail(hIdx, TRX_DATE).second->getAs<time_point>();
   m_ledger = trx.getOrFail(hIdx, TRX_LEDGER).second->getAs<checksum256>();
+  m_id = trx.getOrFail(hIdx, TRX_ID).second->getAs<int64_t>();
+
+  EOS_CHECK(
+    trxInfo.size() >= 2,
+    "Transaction must contain at least 1 component"
+  );
 
   //Extract the components
   for (size_t i = 0; i < trxInfo.size(); ++i) {
@@ -55,11 +65,62 @@ Transaction::Transaction(ContentGroups& trxInfo)
                                 std::to_string(i) + 
                                 " memo:" +component.memo);
     }
-    
-    LOG_MESSAGE(util::to_str("Component read: ", trxInfo[i]))
 
+    if (auto [idx, event] = trx.get(i, EVENT_EDGE); event) {
+      component.event = event->getAs<checksum256>();
+    }
+    
     m_components.emplace_back(std::move(component));
   }
+}
+
+Transaction::Transaction(Document& trxDoc, DocumentGraph& docgraph) 
+{
+  TRACE_FUNCTION()
+
+  ContentWrapper trx = trxDoc.getContentWrapper();
+
+  auto [hIdx, detailsGroup] = trx.getGroup(DETAILS);
+
+  EOS_CHECK(detailsGroup, "Missing 'details' group in transaction document");
+
+  //Check all the details fields are present
+  m_memo = trx.getOrFail(hIdx, TRX_MEMO).second->getAs<string>();
+  m_date = trx.getOrFail(hIdx, TRX_DATE).second->getAs<time_point>();
+  m_ledger = trx.getOrFail(hIdx, TRX_LEDGER).second->getAs<checksum256>();
+  m_id = trx.getOrFail(hIdx, TRX_ID).second->getAs<int64_t>();
+
+  auto componentEdges = docgraph.getEdgesFrom(trxDoc.getHash(), name(COMPONENT_TYPE));
+
+  for (Edge& componentEdge : componentEdges) {
+    Document cmpDoc(accounting::getName(), componentEdge.getToNode());
+    Transaction::Component cmp(cmpDoc.getContentGroups());
+
+    if (auto [exists, eventEdge] = Edge::getIfExists(accounting::getName(), 
+                                                     cmpDoc.getHash(), 
+                                                     name(EVENT_EDGE)); exists) {
+      cmp.event = eventEdge.getToNode();
+    }
+
+    m_components.emplace_back(std::move(cmp));
+  }
+}
+
+Transaction::Component::Component(ContentGroups& data) 
+{
+  TRACE_FUNCTION()
+  ContentWrapper cw(data);
+
+  auto [detailsIdx, detailsGroup] = cw.getGroup(DETAILS);
+
+  EOS_CHECK(
+    detailsGroup != nullptr, 
+    util::to_str("Missing ", DETAILS, " group")
+  )
+
+  account = cw.getOrFail(detailsIdx, COMPONENT_ACCOUNT).second->getAs<checksum256>();
+  memo = cw.getOrFail(detailsIdx, COMPONENT_MEMO).second->getAs<std::string>();
+  amount = cw.getOrFail(detailsIdx, COMPONENT_AMMOUNT).second->getAs<asset>();
 }
 
 static int64_t 
@@ -107,8 +168,9 @@ Transaction::verifyBalanced()
       if (asset.amount != 0) { nonZeroAssets.push_back(asset); }
     }
     else { //Implied asset
-      EOS_CHECK(!impliedAsset, "Only one component is allowed to be implied: " + asset.to_string());
-      impliedAsset = &asset;
+      // EOS_CHECK(!impliedAsset, "Only one component is allowed to be implied: " + asset.to_string());
+      // impliedAsset = &asset;
+      EOS_CHECK(false, util::to_str("Asset is not valid: ", asset));
     }
   }
 

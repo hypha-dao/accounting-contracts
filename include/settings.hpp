@@ -29,8 +29,8 @@ class Settings
     ContentWrapper cw(m_settings.getContentGroups());
     
     if (auto [idx, content] = cw.get(group, setting); content) {
-      if (auto value = std::get_if<T>(content->value)) {
-        return std::optional{*value};
+      if (auto value = std::get_if<T>(&content->value)) {
+        return std::optional<T>{*value};
       }
     }
 

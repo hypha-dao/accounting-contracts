@@ -10,8 +10,9 @@ import (
 	"github.com/alexeyco/simpletable"
 	eostest "github.com/digital-scarcity/eos-go-test"
 	"github.com/eoscanada/eos-go"
+	"github.com/hypha-dao/accounting-go"
 	"github.com/hypha-dao/dao-go"
-	"github.com/hypha-dao/document/docgraph"
+	"github.com/hypha-dao/document-graph/docgraph"
 	"gotest.tools/assert"
 )
 
@@ -142,6 +143,12 @@ func SetupEnvironment(t *testing.T) *Environment {
 	// _, err = eostest.SetContract(env.ctx, &env.api, env.DAO, daoWasm, daoAbi)
 	// assert.NilError(t, err)
 
+	env.Root, err = CreateRoot(env.ctx, &env.api, env.Accounting, env.Accounting)
+	assert.NilError(t, err)
+
+	_, err = accounting.AddTrustedAccount(env.ctx, &env.api, env.Accounting, env.Accounting)
+	assert.NilError(t, err)
+	
 	return &env
 }
 

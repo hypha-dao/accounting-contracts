@@ -25,13 +25,6 @@ const ledger_tester = `
 							"string",
 							"common"
 					]
-				},
-				{
-					"label": "create_openings_account",
-					"value": [
-							"int64",
-							"1"
-					]
 				}
 			]
 	]
@@ -46,7 +39,7 @@ const transaction_test_1 = `
 							"label": "content_group_label",
 							"value": [
 									"string",
-									"header"
+									"details"
 							]
 					},
 					{
@@ -68,22 +61,6 @@ const transaction_test_1 = `
 							"value": [
 									"string",
 									"Test transaction 1"
-							]
-					}
-		 ],
-		 [
-					{
-							"label": "content_group_label",
-							"value": [
-									"string",
-									"metadata"
-							]
-					},
-					{
-							"label": "check_balanced",
-							"value": [
-									"int64",
-									"0"
 							]
 					}
 		 ],
@@ -151,6 +128,163 @@ const transaction_test_1 = `
 }
 `
 
+const transaction_test_we = `
+{
+	"content_groups": 
+	[
+			[
+					{
+							"label": "content_group_label",
+							"value": [
+									"string",
+									"details"
+							]
+					},
+					{
+							"label": "trx_date",
+							"value": [
+									"time_point",
+									"2021-11-17T21:45:11.500"
+							]
+					},
+					{
+							"label": "trx_ledger",
+							"value": [
+									"string",
+									"abc"
+							]
+					},
+					{
+							"label": "trx_memo",
+							"value": [
+									"string",
+									"Test transaction We"
+							]
+					},
+					{
+						"label": "event",
+						"value": [
+								"string",
+								"abc"
+						]
+					}
+				]
+		 ]
+}
+`
+
+const transaction_test_we_update = `
+{
+	"content_groups": 
+	[
+			[
+					{
+							"label": "content_group_label",
+							"value": [
+									"string",
+									"details"
+							]
+					},
+					{
+							"label": "trx_date",
+							"value": [
+									"time_point",
+									"2021-11-17T21:45:11.500"
+							]
+					},
+					{
+							"label": "trx_ledger",
+							"value": [
+									"string",
+									"abc"
+							]
+					},
+					{
+							"label": "trx_memo",
+							"value": [
+									"string",
+									"Test transaction We"
+							]
+					},
+					{
+							"label": "id",
+							"value": [
+									"int64",
+									0
+							]
+					}
+		 ],
+		 [
+					{
+						"label": "content_group_label",
+						"value": [
+								"string",
+								"component"
+						]
+					},
+					{
+						"label": "memo",
+						"value": [
+							"string",
+							"Test component"
+						]
+					},
+					{
+						"label": "account_a",
+						"value": [
+							"string",
+							"abc"
+						]
+					},
+					{
+							"label": "amount",
+							"value": [
+									"asset",
+									"1000.00 USD"
+							]
+					},
+					{
+							"label": "event",
+							"value": [
+								"string",
+								"abc"
+							]
+					}
+		 ],
+		 [
+					{
+						"label": "content_group_label",
+						"value": [
+								"string",
+								"component"
+						]
+					},
+					{
+						"label": "memo",
+						"value": [
+							"string",
+							"Test component"
+						]
+					},
+					{
+						"label": "account_b",
+						"value": [
+							"string",
+							"abc"
+						]
+					},
+					{
+							"label": "amount",
+							"value": [
+									"asset",
+									"-1000.00 USD"
+							]
+					}
+			]
+		]
+}
+`
+
 const transaction_test_implied = `
 {
 	"content_groups": 
@@ -160,7 +294,7 @@ const transaction_test_implied = `
 							"label": "content_group_label",
 							"value": [
 									"string",
-									"header"
+									"details"
 							]
 					},
 					{
@@ -242,58 +376,6 @@ const transaction_test_implied = `
 	]
 }
 `
-const account_openings_tester = `
-{
-	"content_groups": 
-	[
-			[
-					{
-							"label": "content_group_label",
-							"value": [
-									"string",
-									"details"
-							]
-					},
-					{
-							"label": "account_name",
-							"value": [
-									"string",
-									"Income"
-							]
-					},
-					{
-							"label": "account_type",
-							"value": [
-									"int64",
-									1
-							]
-					}
-		 ],
-		 [
-					{
-						 "label": "content_group_label",
-						 "value": [
-								 "string",
-								 "opening_balances"
-								]
-					},
-					{
-							"label": "opening_balance_usd",
-							"value": [
-									"asset",
-									"2000.00 USD"
-							]
-					},
-					{
-							 "label": "opening_balance_btc",
-							 "value": [
-									 "asset",
-									 "0.50000000 BTC"
-								]
-					}
-		 ]
-	]
-}`
 
 const account_mkting = `
 {
@@ -320,6 +402,20 @@ const account_mkting = `
 									"int64",
 									1
 							]
+					},
+					{
+						"label": "account_tag_type",
+						"value": [
+								"string",
+								"DEBIT"
+						]
+					},
+					{
+						"label": "account_code",
+						"value": [
+								"string",
+								"000111"
+						]
 					}
 		 ]
 	]
@@ -350,6 +446,20 @@ const account_income = `
 									"int64",
 									1
 							]
+					},
+					{
+						"label": "account_tag_type",
+						"value": [
+								"string",
+								"CREDIT"
+						]
+					},
+					{
+						"label": "account_code",
+						"value": [
+								"string",
+								"000113"
+						]
 					}
 		 ]
 	]
@@ -381,6 +491,20 @@ const account_food = `
 									"int64",
 									1
 							]
+					},
+					{
+						"label": "account_tag_type",
+						"value": [
+								"string",
+								"DEBIT"
+						]
+					},
+					{
+						"label": "account_code",
+						"value": [
+								"string",
+								"000112"
+						]
 					}
 		 ]
 	]
@@ -412,6 +536,20 @@ const account_expenses = `
 									"int64",
 									1
 							]
+					},
+					{
+						"label": "account_tag_type",
+						"value": [
+								"string",
+								"CREDIT"
+						]
+					},
+					{
+						"label": "account_code",
+						"value": [
+								"string",
+								"000114"
+						]
 					}
 		 ]
 	]
@@ -443,12 +581,26 @@ const account_salary = `
 									"int64",
 									1
 							]
+					},
+					{
+						"label": "account_tag_type",
+						"value": [
+								"string",
+								"DEBIT"
+						]
+					},
+					{
+						"label": "account_code",
+						"value": [
+								"string",
+								"000115"
+						]
 					}
 		 ]
 	]
 }`
 
-const unreviewd_trx_1 = `
+const event_1 = `
 {
 	"content_groups": 
 	[
@@ -549,7 +701,7 @@ const unreviewd_trx_1 = `
 }
 `
 
-const unreviewd_trx_2 = `
+const event_2 = `
 {
 	"content_groups": 
 	[

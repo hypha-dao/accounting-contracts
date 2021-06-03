@@ -12,7 +12,7 @@ import (
 	eostest "github.com/digital-scarcity/eos-go-test"
 	"github.com/eoscanada/eos-go"
 	"github.com/hypha-dao/accounting-go"
-	"github.com/hypha-dao/document/docgraph"
+	"github.com/hypha-dao/document-graph/docgraph"
 
 	"gotest.tools/assert"
 )
@@ -32,13 +32,17 @@ func CreateTestLedger(t *testing.T) string {
 	_, err = accounting.AddLedger(env.ctx,
 		&env.api,
 		env.Accounting,
-		eos.AccountName("testcreate"),
+		env.Accounting,
 		ledgerCgs)
 
 	assert.NilError(t, err)
 
 	//TODO: I need a way to get the hash with the content groups in go
-	return "4c807227a2c9d7ebe5b22050f6d3f0d4318fcb57904e19e18746ae0309024481"
+	docs, err := docgraph.GetDocumentsWithEdge(env.ctx, &env.api, env.Accounting, env.Root, eos.Name("ledger"))
+
+	assert.NilError(t, err)
+
+	return docs[0].Hash.String()
 }
 
 func BuildAccount(parent, ledger eos.Checksum256, accountCgs []docgraph.ContentGroup) {
@@ -62,7 +66,7 @@ func BuildAccount(parent, ledger eos.Checksum256, accountCgs []docgraph.ContentG
 	})
 }
 
-func CreateAccount(env *Environment, data string, parent, ledger eos.Checksum256) (docgraph.Document, error) {
+func CreateAccount(t *testing.T, env *Environment, data string, parent, ledger eos.Checksum256) (docgraph.Document, error) {
 
 	accountCgs, err := StrToContentGroups(data)
 
@@ -75,16 +79,18 @@ func CreateAccount(env *Environment, data string, parent, ledger eos.Checksum256
 	_, err = accounting.CreateAcct(env.ctx,
 		&env.api,
 		env.Accounting,
-		eos.AccountName("tester"),
+		env.Accounting,
 		accountCgs)
 
 	if err != nil {
 		return docgraph.Document{}, err
 	}
 
-	doc, err := docgraph.GetLastDocument(env.ctx,
+	pause(t, time.Second, "", "")
+
+	doc, err := docgraph.GetLastDocumentOfEdge(env.ctx,
 		&env.api,
-		env.Accounting)
+		env.Accounting, eos.Name("account"))
 
 	return doc, err
 }
@@ -185,19 +191,19 @@ func transactTest(t *testing.T, ledgerDoc, expensesAcc, incomeAcc, mktingAcc *do
 
 		t.Log("Creating accounts...\n")
 
-		*expensesAcc, err = CreateAccount(env, account_expenses, ledgerDoc.Hash, ledgerDoc.Hash)
+		*expensesAcc, err = CreateAccount(t, env, account_expenses, ledgerDoc.Hash, ledgerDoc.Hash)
 
 		assert.NilError(t, err)
 
-		*incomeAcc, err = CreateAccount(env, account_income, ledgerDoc.Hash, ledgerDoc.Hash)
+		*incomeAcc, err = CreateAccount(t, env, account_income, ledgerDoc.Hash, ledgerDoc.Hash)
 
 		assert.NilError(t, err)
 
-		*mktingAcc, err = CreateAccount(env, account_mkting, expensesAcc.Hash, ledgerDoc.Hash)
+		*mktingAcc, err = CreateAccount(t, env, account_mkting, expensesAcc.Hash, ledgerDoc.Hash)
 
 		assert.NilError(t, err)
 
-		salaryAcc, err := CreateAccount(env, account_salary, incomeAcc.Hash, ledgerDoc.Hash)
+		salaryAcc, err := CreateAccount(t, env, account_salary, incomeAcc.Hash, ledgerDoc.Hash)
 
 		assert.NilError(t, err)
 
@@ -230,74 +236,6 @@ func transactTest(t *testing.T, ledgerDoc, expensesAcc, incomeAcc, mktingAcc *do
 				TypeID: docgraph.GetVariants().TypeID("checksum256"),
 				Impl:   ledgerDoc.Hash,
 			}})
-
-		assert.NilError(t, err)
-
-		_, err = accounting.Transact(env.ctx,
-			&env.api,
-			env.Accounting,
-			env.Accounting,
-			trxDoc.ContentGroups)
-
-		assert.NilError(t, err)
-	})
-}
-
-func impliedTransacTest(t *testing.T, ledgerDoc, expensesAcc, incomeAcc, mktingAcc docgraph.Document) {
-
-	t.Run(("Testing implied transaction"), func(t *testing.T) {
-
-		t.Log("Creating food account...\n")
-
-		foodAcc, err := CreateAccount(env, account_food, expensesAcc.Hash, ledgerDoc.Hash)
-
-		assert.NilError(t, err)
-
-		trxCgs, err := StrToContentGroups(transaction_test_implied)
-
-		assert.NilError(t, err)
-
-		trxDoc := docgraph.Document{}
-		trxDoc.ContentGroups = trxCgs
-
-		// err = ReplaceContent(&trxDoc, "account_a", "account",
-		// 	&docgraph.FlexValue{
-		// 		BaseVariant: eos.BaseVariant{
-		// 			TypeID: docgraph.GetVariants().TypeID("checksum256"),
-		// 			Impl:   mktingAcc.Hash,
-		// 		}})
-
-		// assert.NilError(t, err)
-
-		err = ReplaceContent(&trxDoc, "account_b", "account", &docgraph.FlexValue{
-			BaseVariant: eos.BaseVariant{
-				TypeID: docgraph.GetVariants().TypeID("checksum256"),
-				Impl:   foodAcc.Hash,
-			}})
-
-		assert.NilError(t, err)
-
-		err = ReplaceContent(&trxDoc, "account_c", "account", &docgraph.FlexValue{
-			BaseVariant: eos.BaseVariant{
-				TypeID: docgraph.GetVariants().TypeID("checksum256"),
-				Impl:   incomeAcc.Hash,
-			}})
-
-		assert.NilError(t, err)
-
-		err = ReplaceContent(&trxDoc, "trx_ledger", "trx_ledger", &docgraph.FlexValue{
-			BaseVariant: eos.BaseVariant{
-				TypeID: docgraph.GetVariants().TypeID("checksum256"),
-				Impl:   ledgerDoc.Hash,
-			}})
-
-		assert.NilError(t, err)
-
-		_, err = accounting.Transact(env.ctx,
-			&env.api,
-			env.Accounting,
-			env.Accounting,
-			trxDoc.ContentGroups)
 
 		assert.NilError(t, err)
 	})
@@ -338,7 +276,7 @@ func TestCreateAccount(t *testing.T) {
 		t.Log("\nDAO Environment Setup complete\n")
 	})
 
-	t.Run("Testing Create action", func(t *testing.T) {
+	t.Run("Testing Create Account action", func(t *testing.T) {
 
 		ledgerHashStr := CreateTestLedger(t)
 
@@ -351,73 +289,237 @@ func TestCreateAccount(t *testing.T) {
 
 		assert.NilError(t, err)
 
-		accountCgs, err := StrToContentGroups(account_mkting)
+		expensesAcc, err := CreateAccount(t, env, account_expenses, ledgerDoc.Hash, ledgerDoc.Hash)
 
 		assert.NilError(t, err)
 
-		BuildAccount(ledgerDoc.Hash, ledgerDoc.Hash, accountCgs)
-
-		t.Log("Creating simple account...\n")
-		_, err = accounting.CreateAcct(env.ctx,
-			&env.api,
-			env.Accounting,
-			eos.AccountName("testcreate"),
-			accountCgs)
+		mktingAcc, err := CreateAccount(t, env, account_mkting, expensesAcc.Hash, ledgerDoc.Hash)
 
 		assert.NilError(t, err)
 
-		pause(t, time.Second, "", "")
-
-		accountCgs, err = StrToContentGroups(account_openings_tester)
+		_, err = CreateAccount(t, env, account_salary, mktingAcc.Hash, ledgerDoc.Hash)
 
 		assert.NilError(t, err)
-
-		BuildAccount(ledgerDoc.Hash, ledgerDoc.Hash, accountCgs)
-
-		t.Log("Creating account with opening balances...\n")
-		_, err = accounting.CreateAcct(env.ctx,
-			&env.api,
-			env.Accounting,
-			eos.AccountName("testcreate"),
-			accountCgs)
-
-		assert.NilError(t, err)
-
-		pause(t, time.Second, "", "")
 
 		//Test error when
-		t.Log("Testing duplicated account...\n")
-		_, err = accounting.CreateAcct(env.ctx,
-			&env.api,
-			env.Accounting,
-			eos.AccountName("testcreate"),
-			accountCgs)
+		_, err = CreateAccount(t, env, account_mkting, expensesAcc.Hash, ledgerDoc.Hash)
 
-		assert.Assert(t, err != nil)
-
-		pause(t, time.Second, "", "")
-
-		//accounting.SayHi(env.ctx, &env.api, env.Accounting);
+		assert.Assert(t, err != nil)		
 	})
 }
 
-func TestTransact(t *testing.T) {
+func TestCreateTrx(t *testing.T) {
 	teardownTestCase := setupTestCase(t)
 	defer teardownTestCase(t)
 
 	// var env Environment
 	env = SetupEnvironment(t)
 
-	var ledgerDoc, expensesAcc, incomeAcc, mktingAcc docgraph.Document
+	var expensesAcc, incomeAcc, mktingAcc docgraph.Document
 
-	t.Run("Configuring the DAO environment: ", func(t *testing.T) {
+	t.Run("Testings CreateTrx: ", func(t *testing.T) {
 		t.Log(env.String())
 		t.Log("\nDAO Environment Setup complete\n")
+
+		ledgerHashStr := CreateTestLedger(t)
+
+		pause(t, time.Second, "", "")
+
+		ledgerDoc, err := docgraph.LoadDocument(env.ctx,
+																						&env.api,
+																						env.Accounting,
+																						ledgerHashStr)
+
+		assert.NilError(t, err)
+
+		expensesAcc, err = CreateAccount(t, env, account_expenses, ledgerDoc.Hash, ledgerDoc.Hash)
+
+		assert.NilError(t, err)
+
+		incomeAcc, err = CreateAccount(t, env, account_income, ledgerDoc.Hash, ledgerDoc.Hash)
+
+		assert.NilError(t, err)
+
+		mktingAcc, err = CreateAccount(t, env, account_mkting, expensesAcc.Hash, ledgerDoc.Hash)
+
+		assert.NilError(t, err)
+
+		salaryAcc, err := CreateAccount(t, env, account_salary, incomeAcc.Hash, ledgerDoc.Hash)
+
+		trxCgs, err := StrToContentGroups(transaction_test_1)
+
+		assert.NilError(t, err)
+
+		trxDoc := docgraph.Document{}
+		trxDoc.ContentGroups = trxCgs
+
+		err = ReplaceContent(&trxDoc, "account_a", "account",
+			&docgraph.FlexValue{
+				BaseVariant: eos.BaseVariant{
+					TypeID: docgraph.GetVariants().TypeID("checksum256"),
+					Impl:   mktingAcc.Hash,
+				}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "account_b", "account", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   salaryAcc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "trx_ledger", "trx_ledger", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   ledgerDoc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		_, err = accounting.CreateTrx(env.ctx, &env.api, env.Accounting, env.Accounting, trxDoc.ContentGroups);
+		
+		assert.NilError(t, err)
+		
+		pause(t, time.Second * 2, "", "")
+			
+		_, err = accounting.CreateTrx(env.ctx, &env.api, env.Accounting, env.Accounting, trxDoc.ContentGroups);
+		
+		assert.NilError(t, err)
+
+		//TODO: Test updatetrx
 	})
 
-	transactTest(t, &ledgerDoc, &expensesAcc, &incomeAcc, &mktingAcc)
+	
+}
 
-	impliedTransacTest(t, ledgerDoc, expensesAcc, incomeAcc, mktingAcc)
+//Test creation of transaction with an event linked to an empty component
+func TestCreateTrxWe(t *testing.T) {
+	teardownTestCase := setupTestCase(t)
+	defer teardownTestCase(t)
+
+	// var env Environment
+	env = SetupEnvironment(t)
+
+	var expensesAcc, incomeAcc docgraph.Document
+
+	t.Run("Testings CreateTrx: ", func(t *testing.T) {
+		t.Log(env.String())
+		t.Log("\nDAO Environment Setup complete\n")
+
+		ledgerHashStr := CreateTestLedger(t)
+
+		pause(t, time.Second, "", "")
+
+		ledgerDoc, err := docgraph.LoadDocument(env.ctx,
+																						&env.api,
+																						env.Accounting,
+																						ledgerHashStr)
+
+		assert.NilError(t, err)
+
+		expensesAcc, err = CreateAccount(t, env, account_expenses, ledgerDoc.Hash, ledgerDoc.Hash)
+
+		assert.NilError(t, err)
+
+		incomeAcc, err = CreateAccount(t, env, account_income, ledgerDoc.Hash, ledgerDoc.Hash)
+
+		assert.NilError(t, err)
+
+		//Test trx_1
+		eventInfo, err := StrToContentGroups(event_1)
+
+		assert.NilError(t, err)
+
+		_, err = accounting.Event(env.ctx, &env.api, env.Accounting, env.Accounting, eventInfo)
+
+		assert.NilError(t, err)
+
+		eventDoc, err := docgraph.GetLastDocument(env.ctx, &env.api, env.Accounting)
+
+		assert.NilError(t, err)
+
+		trxCgs, err := StrToContentGroups(transaction_test_we)
+
+		assert.NilError(t, err)
+
+		trxDoc := docgraph.Document{}
+		trxDoc.ContentGroups = trxCgs
+		
+		err = ReplaceContent(&trxDoc, "trx_ledger", "trx_ledger", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   ledgerDoc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "event", "event", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   eventDoc.Hash,
+		}})
+
+		assert.NilError(t, err)
+
+		_, err = accounting.CreateTrxWe(env.ctx, &env.api, env.Accounting, env.Accounting, trxDoc.ContentGroups);
+		
+		assert.NilError(t, err)
+
+		trxRealDoc, err := docgraph.GetLastDocumentOfEdge(env.ctx, &env.api, env.Accounting, eos.Name("transaction")) 
+		//Fill the transaction with actual components
+		trxCgs, err = StrToContentGroups(transaction_test_we_update)
+
+		assert.NilError(t, err)
+
+		trxDoc = docgraph.Document{}
+		trxDoc.ContentGroups = trxCgs
+
+		err = ReplaceContent(&trxDoc, "account_a", "account",
+			&docgraph.FlexValue{
+				BaseVariant: eos.BaseVariant{
+					TypeID: docgraph.GetVariants().TypeID("checksum256"),
+					Impl:   expensesAcc.Hash,
+				}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "account_b", "account", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   incomeAcc.Hash,
+			}})
+
+		assert.NilError(t, err)
+
+		err = ReplaceContent(&trxDoc, "event", "event", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   eventDoc.Hash,
+			}})
+
+		err = ReplaceContent(&trxDoc, "trx_ledger", "trx_ledger", &docgraph.FlexValue{
+			BaseVariant: eos.BaseVariant{
+				TypeID: docgraph.GetVariants().TypeID("checksum256"),
+				Impl:   ledgerDoc.Hash,
+			}})
+			
+
+		assert.NilError(t, err)
+
+		_, err = accounting.UpdateTrx(env.ctx, &env.api, env.Accounting, env.Accounting, trxRealDoc.Hash, trxDoc.ContentGroups);
+		
+		assert.NilError(t, err)
+
+		_, err = accounting.BalanceTrx(env.ctx, &env.api, env.Accounting, env.Accounting, trxRealDoc.Hash);
+		
+		assert.NilError(t, err)
+		
+		pause(t, time.Second * 2, "", "")
+	})
+
+	
 }
 
 func TestSettings(t *testing.T) {
@@ -436,8 +538,6 @@ func TestSettings(t *testing.T) {
 	})
 
 	transactTest(t, &ledgerDoc, &expensesAcc, &incomeAcc, &mktingAcc)
-
-	impliedTransacTest(t, ledgerDoc, expensesAcc, incomeAcc, mktingAcc)
 
 	t.Run("Testing Settings", func(t *testing.T) {
 
@@ -488,7 +588,7 @@ func TestSettings(t *testing.T) {
 	})
 }
 
-func TestUnreviewedTransaction(t *testing.T) {
+func TestEvent(t *testing.T) {
 
 	teardownTestCase := setupTestCase(t)
 	defer teardownTestCase(t)
@@ -502,10 +602,6 @@ func TestUnreviewedTransaction(t *testing.T) {
 		t.Log(env.String())
 		t.Log("\nDAO Environment Setup complete\n")
 	})
-
-	// transactTest(t, &ledgerDoc, &expensesAcc, &incomeAcc, &mktingAcc)
-
-	// impliedTransacTest(t, ledgerDoc, expensesAcc, incomeAcc, mktingAcc)
 
 	_, tester, _ := eostest.CreateAccountWithRandomKey(env.ctx, &env.api, "tester")
 	_, alpha, _ := eostest.CreateAccountWithRandomKey(env.ctx, &env.api, "alpha")
@@ -534,14 +630,14 @@ func TestUnreviewedTransaction(t *testing.T) {
 		assert.NilError(t, err)
 	})
 
-	t.Run("Testing unreviewed transactions", func(t *testing.T) {
+	t.Run("Testing events", func(t *testing.T) {
 
-		//Test trx_1
-		trxInfo, err := StrToContentGroups(unreviewd_trx_1)
+		//Test event
+		trxInfo, err := StrToContentGroups(event_1)
 
 		assert.NilError(t, err)
 
-		_, err = accounting.UnreviewedTrx(env.ctx, &env.api, env.Accounting, tester, trxInfo)
+		_, err = accounting.Event(env.ctx, &env.api, env.Accounting, tester, trxInfo)
 
 		assert.NilError(t, err)
 
@@ -564,16 +660,16 @@ func TestUnreviewedTransaction(t *testing.T) {
 		assert.Equal(t, lastCursor, trxCursor.String())
 
 		//Must give error since beta is not trusted account
-		_, err = accounting.UnreviewedTrx(env.ctx, &env.api, env.Accounting, beta, trxInfo)
+		_, err = accounting.Event(env.ctx, &env.api, env.Accounting, beta, trxInfo)
 
 		assert.Assert(t, err != nil)
 
 		//Test trx_2
-		trxInfo, err = StrToContentGroups(unreviewd_trx_2)
+		trxInfo, err = StrToContentGroups(event_2)
 
 		assert.NilError(t, err)
 
-		_, err = accounting.UnreviewedTrx(env.ctx, &env.api, env.Accounting, tester, trxInfo)
+		_, err = accounting.Event(env.ctx, &env.api, env.Accounting, tester, trxInfo)
 
 		assert.NilError(t, err)
 
@@ -604,7 +700,7 @@ func TestUnreviewedTransaction(t *testing.T) {
 
 		assert.NilError(t, err)
 
-		_, err = accounting.UnreviewedTrx(env.ctx, &env.api, env.Accounting, tester, trxDoc.ContentGroups)
+		_, err = accounting.Event(env.ctx, &env.api, env.Accounting, tester, trxDoc.ContentGroups)
 
 		assert.NilError(t, err)
 

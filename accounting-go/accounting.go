@@ -9,7 +9,7 @@ import (
 
 	eostest "github.com/digital-scarcity/eos-go-test"
 	eos "github.com/eoscanada/eos-go"
-	"github.com/hypha-dao/document/docgraph"
+	"github.com/hypha-dao/document-graph/docgraph"
 )
 
 type createLedger struct {
@@ -27,6 +27,22 @@ type transact struct {
 	TransactionInfo []docgraph.ContentGroup `json: "trx_info"`
 }
 
+type createTrx struct {
+	Creator          eos.AccountName         `json: "creator"`
+	TransactionInfo []docgraph.ContentGroup  `json: "trx_info"`
+}
+
+type updateTrx struct {
+	Updater          eos.AccountName 				 `json: "updater"`
+	TransactionHash eos.Checksum256  				 `json: "trx_hash"`
+	TransactionInfo []docgraph.ContentGroup  `json: "trx_info"`
+}
+
+type balanceTrx struct {
+	Issuer          eos.AccountName 				 `json: "issuer"`
+	TransactionHash eos.Checksum256  				 `json: "trx_hash"`
+}
+
 type setSetting struct {
 	Setting string             `json: "setting"`
 	Value   docgraph.FlexValue `json: "value"`
@@ -41,9 +57,9 @@ type trustAccount struct {
 }
 
 type cursor struct {
-	Key 				uint64 				`json:"key"`
-	Source 			string 				`json:"source"`
-	LastCursor 	string 				`json:"last_cursor"`
+	Key        uint64 `json:"key"`
+	Source     string `json:"source"`
+	LastCursor string `json:"last_cursor"`
 }
 
 func AddLedger(ctx context.Context, api *eos.API, contract, creator eos.AccountName, ledger []docgraph.ContentGroup) (string, error) {
@@ -68,7 +84,7 @@ func CreateAcct(ctx context.Context, api *eos.API, contract, creator eos.Account
 
 	actions := []*eos.Action{{
 		Account: contract,
-		Name:    eos.ActN("create"),
+		Name:    eos.ActN("createacc"),
 		Authorization: []eos.PermissionLevel{
 			{Actor: contract, Permission: eos.PN("active")},
 		},
@@ -81,16 +97,71 @@ func CreateAcct(ctx context.Context, api *eos.API, contract, creator eos.Account
 	return eostest.ExecTrx(ctx, api, actions)
 }
 
-func Transact(ctx context.Context, api *eos.API, contract, issuer eos.AccountName, trx []docgraph.ContentGroup) (string, error) {
+//func CreateTrx(ctx)
+
+
+func CreateTrxWe(ctx context.Context, api *eos.API, contract, creator eos.AccountName, trx []docgraph.ContentGroup) (string, error) {
 
 	actions := []*eos.Action{{
 		Account: contract,
-		Name:    eos.ActN("transact"),
+		Name:    eos.ActN("createtrxwe"),
 		Authorization: []eos.PermissionLevel{
 			{Actor: contract, Permission: eos.PN("active")},
 		},
-		ActionData: eos.NewActionData(transact{
-			Issuer:          issuer,
+		ActionData: eos.NewActionData(createTrx{
+			Creator:          creator,
+			TransactionInfo: trx,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+}
+
+func CreateTrx(ctx context.Context, api *eos.API, contract, creator eos.AccountName, trx []docgraph.ContentGroup) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("createtrx"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: contract, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(createTrx{
+			Creator:          creator,
+			TransactionInfo: trx,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+}
+
+func BalanceTrx(ctx context.Context, api *eos.API, contract, issuer eos.AccountName, trx_hash eos.Checksum256) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("balancetrx"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: contract, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(balanceTrx{
+			Issuer:						issuer,
+			TransactionHash:  trx_hash,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+}
+
+func UpdateTrx(ctx context.Context, api *eos.API, contract, updater eos.AccountName, trx_hash eos.Checksum256,  trx []docgraph.ContentGroup) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("updatetrx"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: contract, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(updateTrx{
+			Updater:          updater,
+			TransactionHash:  trx_hash,
 			TransactionInfo: trx,
 		}),
 	}}
@@ -164,11 +235,11 @@ func RemTrustedAccount(ctx context.Context, api *eos.API, contract eos.AccountNa
 }
 
 //Check with permissions
-func UnreviewedTrx(ctx context.Context, api *eos.API, contract, issuer eos.AccountName, trx []docgraph.ContentGroup) (string, error) {
+func Event(ctx context.Context, api *eos.API, contract, issuer eos.AccountName, trx []docgraph.ContentGroup) (string, error) {
 
 	actions := []*eos.Action{{
 		Account: contract,
-		Name:    eos.ActN("newunrvwdtrx"),
+		Name:    eos.ActN("newevent"),
 		Authorization: []eos.PermissionLevel{
 			{Actor: issuer, Permission: eos.PN("active")},
 		},
@@ -182,7 +253,7 @@ func UnreviewedTrx(ctx context.Context, api *eos.API, contract, issuer eos.Accou
 }
 
 func GetLastCursor(ctx context.Context, api *eos.API, contract eos.AccountName) (string, error) {
-	
+
 	var request eos.GetTableRowsRequest
 	request.Code = string(contract)
 	request.Scope = string(contract)
@@ -210,9 +281,9 @@ func GetLastCursor(ctx context.Context, api *eos.API, contract eos.AccountName) 
 }
 
 func GetCursorFromSource(ctx context.Context, api *eos.API, contract eos.AccountName, source string) (string, error) {
-	
+
 	hashBytes := sha256.Sum256([]byte(source))
-	hashStr := hex.EncodeToString(hashBytes[:]) 
+	hashStr := hex.EncodeToString(hashBytes[:])
 
 	var request eos.GetTableRowsRequest
 	request.Code = string(contract)

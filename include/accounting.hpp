@@ -9,6 +9,7 @@
 #include <document_graph/document_graph.hpp>
 #include <document_graph/content_wrapper.hpp>
 
+#include <constants.hpp>
 #include "eosio_utils.hpp"
 
 namespace hypha {
@@ -84,7 +85,7 @@ CONTRACT accounting : public contract {
   * Creates the root document (useful for testing)
   */ 
   ACTION
-  createroot();
+  createroot(std::string notes);
 
   /**
   * Adds a ledger account to the graph
@@ -98,16 +99,43 @@ CONTRACT accounting : public contract {
   * Adds an account to the graph
   */
   ACTION 
-  create(name creator, ContentGroups& account_info);
+  createacc(name creator, ContentGroups& account_info);
+
+  /**
+   * @brief Creates an unapproved transaction
+   * 
+   * @param creator User that created
+   * @param trx_info 
+   */
+  ACTION
+  createtrx(name creator, ContentGroups& trx_info);
+
+  /**
+   * @brief Creates a transaction with an empty component linked to an event
+   * 
+   * @param creator 
+   * @param trx_info 
+   */
+  ACTION
+  createtrxwe(name creator, ContentGroups& trx_info);
+
+  /**
+   * @brief Updates an unapproved transaction by adding, deleting or modifying components
+   * 
+   * @param trx_info 
+   * @return ACTION 
+   */
+  ACTION
+  updatetrx(name updater, checksum256 trx_hash, ContentGroups& trx_info);
 
   /**
    * Stores the components and transaction information in the graph
    */
   ACTION
-  transact(name issuer, ContentGroups& trx_info);
+  balancetrx(name issuer, checksum256 trx_hash);
 
   ACTION
-  newunrvwdtrx(name issuer, ContentGroups trx_info);
+  newevent(name issuer, ContentGroups trx_info);
 
   /**
   * Adds a setting in the settings document or replaces it if the setting already
@@ -123,7 +151,7 @@ CONTRACT accounting : public contract {
   remsetting(string setting);
   
   /**
-  * Adds an account to the trusted accounts group. Necesary to trigger unrvwd trx action
+  * Adds an account to the trusted accounts group. Necesary to trigger newevent action
   */  
   ACTION
   addtrustacnt(name account);
@@ -135,10 +163,30 @@ CONTRACT accounting : public contract {
   remtrustacnt(name account);
 
   /**
-  * Clears the unrvwdtrxs from the graph
+   * @brief Binds an event with a component document
+   * 
+   * @param event_hash 
+   * @param component_hash 
+   * @return ACTION 
+   */
+  ACTION
+  bindevent(name updater, checksum256 event_hash, checksum256 component_hash);
+
+  /**
+   * @brief Unbinds an event from a component document
+   * 
+   * @param event_hash 
+   * @param component_hash 
+   * @return ACTION 
+   */
+  ACTION
+  unbindevent(name updater, checksum256 event_hash, checksum256 component_hash);
+    
+  /**
+  * Clears the events from the graph
   */
   ACTION
-  clearunrvwd(int64_t max_removable_trx);
+  clearevent(int64_t max_removable_trx);
 
   /**
   * Clears the data
@@ -156,13 +204,7 @@ CONTRACT accounting : public contract {
   getName();
 
   static ContentGroup
-  getSystemGroup(const char* nodeName, const char* type);
-
-  ContentGroups
-  getOpeningsAccount(checksum256 parent);
-
-  ContentGroups
-  getEquityAccount(checksum256 parent);
+  getSystemGroup(std::string nodeName, std::string type);
 
   bool
   isCurrencySupported(symbol currency);
@@ -174,17 +216,56 @@ CONTRACT accounting : public contract {
   requireTrusted(name account);
   
   /**
-  * Retreives the hash of the Unreviewed Transactions Bucket document
+  * Retreives the hash of the Events Bucket document
   */
   checksum256
-  getUnreviewedTrxBucket();
+  getEventBucket();
  private:
 
-  ContentGroup
-  getTrxHeader(string memo, time_point date, checksum256 ledger);
+  struct Balance
+  {
+    std::string label;
+    asset amount;
+  };
 
-  checksum256
-  getOpeningsHash(checksum256 parent);
+  void
+  createAccountBalance();
+
+  void
+  createComponents(checksum256 trx_hash, class Transaction& trx, name creator);
+
+  std::string
+  getAccountPath(std::string account, checksum256 parent, const checksum256& ledger);
+
+  //Adds the given amount to an specific account balances
+  void 
+  addAssetToAccount(checksum256 account, asset amount);
+
+  void
+  recalculateGlobalBalances(checksum256 account, checksum256 ledger);
+
+  /**
+   * @brief Adds a list of balances to a given account balances
+   * 
+   * @param account 
+   * @param balances 
+   * @param accCW 
+   */
+  void
+  addToBalance(Document& balancesDoc, 
+               const std::vector<Balance>& balances);
+
+  Document
+  getAccountBalances(checksum256 account);
+
+  /**
+   * @brief Get's the global balances of an account
+   * 
+   * @param account 
+   * @return std::vector<asset> [Balances]
+   */
+  std::vector<Balance>
+  getAccountGlobalBalances(checksum256 account);
 
   ContentGroup
   getTrxComponent(checksum256 account, 
@@ -193,14 +274,15 @@ CONTRACT accounting : public contract {
                   string label = "component");
 
   /**
-  * @brief Creates a parent->child relationship with edges between accounts 
+  * @brief Creates a parent --> child & parent <-- child
+  * edges relationship between accounts 
   */
   void 
   parent(name creator, 
          checksum256 parent, 
          checksum256 child, 
-         string_view fromToEdge = "account", 
-         string_view toFromEdge = "ownedby");
+         string_view fromToEdge = ACCOUNT_EDGE, 
+         string_view toFromEdge = OWNED_BY);
 
   DocumentGraph m_documentGraph{get_self()};
 

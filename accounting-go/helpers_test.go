@@ -1,15 +1,22 @@
 package accounting_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/hypha-dao/document/docgraph"
+	eostest "github.com/digital-scarcity/eos-go-test"
+	eos "github.com/eoscanada/eos-go"
+	"github.com/hypha-dao/document-graph/docgraph"
 	"github.com/k0kubun/go-ansi"
 	progressbar "github.com/schollz/progressbar/v3"
 )
+
+type createRoot struct {
+	Notes string `json:"notes"`
+}
 
 func pause(t *testing.T, seconds time.Duration, headline, prefix string) {
 	if headline != "" {
@@ -39,6 +46,29 @@ func pause(t *testing.T, seconds time.Duration, headline, prefix string) {
 	fmt.Println()
 }
 
+func CreateRoot(ctx context.Context, api *eos.API, contract, creator eos.AccountName) (docgraph.Document, error) {
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("createroot"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: creator, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(createRoot{
+			Notes: "notes",
+		}),
+	}}
+	_, err := eostest.ExecWithRetry(ctx, api, actions)
+	if err != nil {
+		return docgraph.Document{}, fmt.Errorf("execute create root: %v", err)
+	}
+
+	lastDoc, err := docgraph.GetLastDocument(ctx, api, contract)
+	if err != nil {
+		return docgraph.Document{}, fmt.Errorf("get last document: %v", err)
+	}
+	return lastDoc, nil
+}
+
 func StrToContentGroups(data string) ([]docgraph.ContentGroup, error) {
 	var tempDoc docgraph.Document
 	err := json.Unmarshal([]byte(data), &tempDoc)
@@ -50,7 +80,7 @@ func StrToContentGroups(data string) ([]docgraph.ContentGroup, error) {
 }
 
 func CreateStrContent(label string, value string) {
-	
+
 }
 
 func GetContent(d *docgraph.Document, label string) (*docgraph.ContentItem, error) {

@@ -24,7 +24,7 @@ accounting::accounting(name self, name first_receiver, datastream<const char*> d
 }
 
 ACTION 
-accounting::createroot()
+accounting::createroot(std::string)
 {
   TRACE_FUNCTION()
 
@@ -37,7 +37,8 @@ accounting::addledger(name creator, ContentGroups& ledger_info)
 {
   TRACE_FUNCTION()
 
-  require_auth(get_self());
+  require_auth(creator);
+  requireTrusted(creator);
 
   ContentWrapper cw(ledger_info);
 
@@ -45,31 +46,28 @@ accounting::addledger(name creator, ContentGroups& ledger_info)
   
   ledger_info.push_back(getSystemGroup(ledgerName.c_str(), "ledger"));
 
-  auto withOpeningsAccount = cw.getOrFail(DETAILS, "create_openings_account")->getAs<int64_t>();
-
   Document ledger(get_self(), creator, std::move(ledger_info));
 
-  if (withOpeningsAccount == 1) {
-    //Create default Equity
-    Document equityAcc(get_self(), creator, getEquityAccount(ledger.getHash()));
+  Document trxBucket(get_self(), creator, {
+    ContentGroup{
+      Content {CONTENT_GROUP_LABEL, DETAILS},
+      Content {CREATE_DATE, current_time_point()},
+    },
+    getSystemGroup(TRX_BUCKET_LABEL, TRX_BUCKET_EDGE)
+  });
 
-    // //Create default Equity::OpeningsAccount
-    Document openingsAcc(get_self(), creator, getOpeningsAccount(equityAcc.getHash()));
-    
-    parent(creator, ledger.getHash(), equityAcc.getHash());
-
-    parent(creator, equityAcc.getHash(), openingsAcc.getHash());
-  }
+  Edge(get_self(), creator, ledger.getHash(), trxBucket.getHash(), name(TRX_BUCKET_EDGE));
 
   Edge(get_self(), creator, getRoot().getHash(), ledger.getHash(), name("ledger"));
 }
 
 ACTION
-accounting::create(name creator, ContentGroups& account_info)
+accounting::createacc(name creator, ContentGroups& account_info)
 { 
   TRACE_FUNCTION()
 
-  require_auth(get_self());
+  require_auth(creator);
+  requireTrusted(creator);
 
   ContentWrapper contentWrap(account_info);
 
@@ -80,6 +78,10 @@ accounting::create(name creator, ContentGroups& account_info)
   auto parentHash = contentWrap.getOrFail(dIdx, PARENT_ACCOUNT).second->getAs<checksum256>();
 
   auto accountType = contentWrap.getOrFail(dIdx, ACCOUNT_TYPE).second->getAs<int64_t>();
+  
+  auto accountTagType = contentWrap.getOrFail(dIdx, ACCOUNT_TAG_TYPE).second->getAs<string>();
+
+  auto accountCode = contentWrap.getOrFail(dIdx, ACCOUNT_CODE).second->getAs<string>();
 
   auto accountName = contentWrap.getOrFail(dIdx, ACCOUNT_NAME).second->getAs<string>();
 
@@ -111,176 +113,263 @@ accounting::create(name creator, ContentGroups& account_info)
       Content{CONTENT_GROUP_LABEL, DETAILS},
       Content{ACCOUNT_NAME, accountName},
       Content{ACCOUNT_TYPE, accountType},
-      Content{PARENT_ACCOUNT, parentHash}
+      Content{ACCOUNT_TAG_TYPE, accountTagType},
+      Content{ACCOUNT_CODE, accountCode},
+      // Content{PARENT_ACCOUNT, parentHash},
+      Content{ACCOUNT_PATH, getAccountPath(accountName, parentHash, ledger)}
     },
     getSystemGroup(accountName.c_str(), "account"),
   });
+
+  auto balanceSystemGroup = getSystemGroup(util::to_str(BALANCES), 
+                                           BALANCES); 
+
+  balanceSystemGroup.push_back(Content{CREATE_DATE, current_time_point()});
+
+  auto& settings = Settings::instance();
+  int64_t nextBalanceID = settings.getOrDefault("next_balances_id", int64_t{0});
+  settings.addOrReplace("next_balances_id", nextBalanceID + 1);
+
+  balanceSystemGroup.push_back(Content{CREATE_DATE, current_time_point()});
+  balanceSystemGroup.push_back(Content{"balance_id", nextBalanceID});
+  //Create balances document
+  Document balances(get_self(), creator, {
+    ContentGroup{
+      Content{CONTENT_GROUP_LABEL, BALANCES},
+    },
+    std::move(balanceSystemGroup)
+  });
+
+  Edge(get_self(), creator, account.getHash(), balances.getHash(), name(BALANCES));
   
   parent(creator, parentHash, account.getHash());
-  
-  //Process opening balances if any
-  if (auto [idx, balances] = contentWrap.getGroup(OPENING_BALANCES);
-      balances) {
-
-    auto openingBalances = getOpeningsHash(ledger);
-
-    for (const auto& content : *balances) {
-      
-      auto& [label, value] = content;
-
-      if (util::containsPrefix(label, OPENING_BALANCE_PREFIX)) {
-               
-        asset componentAmount = content.getAs<asset>();
-       
-        EOS_CHECK(componentAmount.is_valid(), 
-              "Invalid asset: " + componentAmount.to_string());
-
-        EOS_CHECK(isCurrencySupported(componentAmount.symbol), 
-              string("Unsupported currency: ") + componentAmount.symbol.code().to_string());
-
-        auto memo = util::to_str("Opening Balance: ", componentAmount.symbol.code());
-
-        ContentGroups transaction{getTrxHeader(memo, 
-                                  current_time_point(),
-                                  ledger)};
-
-        transaction.emplace_back(getTrxComponent(account.getHash(), 
-                                                 memo,
-                                                 componentAmount));
-
-        componentAmount.set_amount(-componentAmount.amount);
-
-        transaction.emplace_back(getTrxComponent(openingBalances, 
-                                                 memo,
-                                                 componentAmount));
-
-        transact(get_self(), transaction);
-      }
-      else if (label != CONTENT_GROUP_LABEL) {
-        EOS_CHECK(false, "Wrong format for opening_balances account [" + label + "]");
-      }
-    }
-  }
 }
 
 /**
 * Transaction structure
-* label: header
+* label: details
 * transaction_date : time_point
 * memo: string
+* ledger: chechsum256
 * 
 * [components]
 * label: component
 * account: account hash checksum256
 * memo: string
 * amount: asset
+* event?: chechsum256
 *  
 **/
 ACTION
-accounting::transact(name issuer, ContentGroups& trx_info)
+accounting::createtrx(name creator, ContentGroups& trx_info)
 {
   TRACE_FUNCTION()
 
-  require_auth(issuer);
+  require_auth(creator);
+  requireTrusted(creator);
+
+  Settings& settings = Settings::instance();
+  auto nextID = settings.getOrDefault("next_trx_id", int64_t(0));
+  settings.addOrReplace("next_trx_id", nextID + 1);
+
+  ContentWrapper cw(trx_info);
+
+  auto detailsGroup = cw.getGroupOrFail(DETAILS);
+
+  ContentWrapper::insertOrReplace(*detailsGroup, Content{TRX_ID, nextID});
 
   Transaction trx(trx_info);
+  
+  Document trxDoc(get_self(), creator, { trx.getDetails(), 
+                                         getSystemGroup(TRX_LABEL, TRX_TYPE) });
 
-  std::vector<asset> assets = trx.verifyBalanced();
+  auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
 
-  TableWrapper<currencies_table> currencies(get_self(), get_self().value);
+  parent(creator, ledgerToTrxBucket.getToNode(), trxDoc.getHash(), UNAPPROVED_TRX, UNAPPROVED_TRX);
 
-  for (auto& a : assets) {
-    if (!currencies.contains(a.symbol.code().raw())) {
-      currencies.insert(get_self(), [a](currency& c){
-        c.code = a.symbol.code();
-      });
-    }
-  }
+  createComponents(trxDoc.getHash(), trx, creator);
+}
 
-  asset fromCurrency;
-  asset toCurrency;
+/**
+ Transaction structure
+* label: details
+* event: checksum256
+* ledger: checksum256
+*/
+ACTION
+accounting::createtrxwe(name creator, ContentGroups& trx_info)
+{
+  TRACE_FUNCTION()
 
-  if (assets.size() == 2) {
-    fromCurrency = assets[0];
-    toCurrency = assets[1];
-  }
-  else if (assets.size() == 1) {
-    fromCurrency = toCurrency = assets[0];
-  }
-  else {
-    EOS_CHECK(
-      false, 
-      "Assets size has to be 2 or 1, actual:" + std::to_string(assets.size())
-    );
-  }
+  require_auth(creator);
+  requireTrusted(creator);
 
-  Document trxDoc(get_self(), issuer, { trx.getDetails(), 
-                                        getSystemGroup("transaction", "trx") });
+  Settings& settings = Settings::instance();
+  auto nextID = settings.getOrDefault("next_trx_id", int64_t(0));
+  settings.addOrReplace("next_trx_id", nextID + 1);
 
-  TableWrapper<exchange_rates_table> exrates(get_self(), get_self().value);
+  ContentWrapper cw(trx_info);
 
-  EOS_CHECK(
-    !exrates.contains_by<"trxorigin"_n>(trxDoc.getHash()),
-    util::to_str("There is another exchange rate with the same transaction origin: ",
-                 readableHash(trxDoc.getHash()))
-  );
+  Content* ledger = cw.getOrFail(DETAILS, TRX_LEDGER);
 
-  EOS_CHECK(
-    (fromCurrency.amount * toCurrency.amount) != 0 || 
-    (fromCurrency.amount == 0 && toCurrency.amount == 0) ||
-    //This is an special case for implied assets. Since the assets is invalid 
-    //its code is 0
-    (fromCurrency.symbol.raw() == 0),
-    util::to_str("Zero sum error. Both assets must be either 0 or different than 0. [", 
-                 fromCurrency, toCurrency, "]")
-  );
+  ContentGroups trxCG {
+    ContentGroup {
+      Content{CONTENT_GROUP_LABEL, DETAILS},
+      Content{TRX_DATE, current_time_point()},
+      Content{TRX_ID, nextID},
+      Content{TRX_MEMO, ""},
+      *ledger
+    },
+    getSystemGroup(TRX_LABEL, TRX_TYPE)
+  };
 
-  exrates.insert(get_self(), [&](exchange_rate& exrate){
-    exrate.id = exrates.get_next_pk();
-    exrate.date = current_time_point();
-    exrate.from_currency = fromCurrency.symbol.code();
-    exrate.to_currency = toCurrency.symbol.code();
-    exrate.trx_origin = trxDoc.getHash();
-    exrate.invalidated = false;
-    exrate.rate = fromCurrency.amount == 0 ? 1.f : util::calculateRate(fromCurrency, toCurrency);
-  });
+  Document trxDoc(get_self(), creator, trxCG);
 
-  for (auto& compnt : trx.getComponents()) {
-    Document compntAcct(get_self(), compnt.account);
+  auto ledgerToTrxBucket = Edge::get(get_self(), ledger->getAs<checksum256>(), name(TRX_BUCKET_EDGE));
 
-    Document compntDoc(get_self(), issuer, { getTrxComponent(compnt.account, 
-                                                             compnt.memo, 
-                                                             compnt.amount,
+  parent(creator, ledgerToTrxBucket.getToNode(), trxDoc.getHash(), UNAPPROVED_TRX, UNAPPROVED_TRX);
+
+  //Create empty component and link it to the event
+  checksum256 event = cw.getOrFail(DETAILS, EVENT_EDGE)->getAs<checksum256>();
+
+  Document componentDoc(get_self(), creator, { getTrxComponent(checksum256(), 
+                                                             "", 
+                                                             asset(), 
                                                              DETAILS),
-                                             getSystemGroup("component", "component") });
+                                               getSystemGroup(COMPONENT_LABEL, COMPONENT_TYPE)});
 
-    parent(issuer, trxDoc.getHash(), compntDoc.getHash(), "component", "transaction");
+  parent(creator, trxDoc.getHash(), componentDoc.getHash(), COMPONENT_TYPE, TRX_TYPE);                       
 
-    Edge compntToAcc(get_self(), issuer, compntDoc.getHash(), compntAcct.getHash(), "account"_n);
-    
-    Edge::getOrNew(get_self(), issuer, compntAcct.getHash(), trxDoc.getHash(), "transaction"_n);
-  }
+  eosio::action(
+    eosio::permission_level{creator, "active"_n},
+    get_self(),
+    "bindevent"_n,
+    std::make_tuple(creator, event, componentDoc.getHash())
+  ).send();
 }
 
 ACTION
-accounting::newunrvwdtrx(name issuer, ContentGroups trx_info) 
+accounting::updatetrx(name updater, checksum256 trx_hash, ContentGroups& trx_info)
+{
+  TRACE_FUNCTION()
+
+  require_auth(updater);
+  requireTrusted(updater);
+
+  auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
+
+  EOS_CHECK(
+    !unapprovedEdge.empty(),
+    util::to_str("Cannot update approved transaction: ", trx_hash)
+  )
+  
+  //Add new components
+  Transaction transaction(trx_info);
+
+  //Verify that trx_hash document 'id' field matches the trx_info 'id'
+  {
+    Document trxDoc(get_self(), trx_hash);
+    int64_t docID = trxDoc.getContentWrapper()
+                          .getOrFail(DETAILS, TRX_ID)->getAs<int64_t>();
+    EOS_CHECK(
+      transaction.getID() == docID,
+      util::to_str("The 'id' in trx_info [",
+                    transaction.getID(),
+                    "] doesn't match the id within document loaded with trx_hash [",
+                    trx_hash, ",", docID, "]")
+    )
+  }
+
+  //Delete Components
+  auto oldComponentsEdges = m_documentGraph.getEdgesFrom(trx_hash, name(COMPONENT_TYPE));
+  for (Edge& componentEdge : oldComponentsEdges) {
+    Document cmpDoc(get_self(), componentEdge.getToNode());
+    Transaction::Component cmp(cmpDoc.getContentGroups());
+    //Verify if component contains a valid asset 
+    //(might be empty if created with 'createtrxwe' action)
+    if (cmp.amount.is_valid()) {
+      addAssetToAccount(cmp.account, -cmp.amount);
+      recalculateGlobalBalances(cmp.account, transaction.getLedger());
+    } 
+    m_documentGraph.eraseDocument(cmpDoc.getHash(), true);
+  }
+  
+  createComponents(trx_hash, transaction, updater);
+}
+
+ACTION
+accounting::balancetrx(name issuer, checksum256 trx_hash)
+{
+  TRACE_FUNCTION()
+
+  require_auth(issuer);
+  requireTrusted(issuer);
+
+  auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
+
+  EOS_CHECK(
+    !unapprovedEdge.empty(),
+    util::to_str("Cannot balance approved transaction: ", trx_hash)
+  )
+
+  auto trxComponents = m_documentGraph.getEdgesFrom(trx_hash, name(COMPONENT_TYPE));
+  for (Edge& componentEdge : trxComponents) {
+    Document cmpDoc(get_self(), componentEdge.getToNode());
+    //Verify component has linked account
+    Edge::get(get_self(), cmpDoc.getHash(), name(ACCOUNT_EDGE));
+  }
+
+  Document trxDoc(get_self(), trx_hash);
+
+  auto trxCW = trxDoc.getContentWrapper();
+
+  auto detailsGroup = trxCW.getGroupOrFail(DETAILS);
+
+  ContentWrapper::insertOrReplace(*detailsGroup, Content{TRX_APPROVER, issuer});
+
+  trxDoc = m_documentGraph.updateDocument(issuer, trxDoc.getHash(), trxDoc.getContentGroups());
+
+  trx_hash = trxDoc.getHash();
+
+  Transaction trx(trxDoc, m_documentGraph);
+
+  std::vector<asset> assets = trx.verifyBalanced();
+
+  if (assets.empty() || assets.size() > 2) {
+    EOS_CHECK(
+      false, 
+      util::to_str("Assets size has to be 2 or 1, actual:", assets.size())
+    );
+  } 
+
+  auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
+  auto bucketHash = ledgerToTrxBucket.getToNode();
+  
+  //Should have unapproved edge
+  Edge::get(get_self(), bucketHash, trx_hash, name(UNAPPROVED_TRX)).erase();
+  Edge::get(get_self(), trx_hash, bucketHash, name(UNAPPROVED_TRX)).erase();
+
+  //Move to approved edge
+  parent(issuer, bucketHash, trx_hash, APPROVED_TRX, APPROVED_TRX);
+}
+
+ACTION
+accounting::newevent(name issuer, ContentGroups trx_info) 
 {
   TRACE_FUNCTION()
   
   require_auth(issuer);
-  
-  //Check if account is trusted
   requireTrusted(issuer);
 
-  auto bucketHash = getUnreviewedTrxBucket();
+  auto bucketHash = getEventBucket();
 
   ContentWrapper cw(trx_info);
 
   //TODO: Add check for mandatory fields
 
-  const string& trxSource = cw.getOrFail(DETAILS, UNREVIEWED_TRX_SOURCE)->getAs<string>();
+  const string& trxSource = cw.getOrFail(DETAILS, EVENT_SOURCE)->getAs<string>();
 
-  const string& trxCursor = cw.getOrFail(DETAILS, UNREVIEWED_TRX_CURSOR)->getAs<string>();
+  const string& trxCursor = cw.getOrFail(DETAILS, EVENT_CURSOR)->getAs<string>();
 
   cursor_table cursorsTbl(get_self(), get_self().value);
 
@@ -300,9 +389,59 @@ accounting::newunrvwdtrx(name issuer, ContentGroups trx_info)
     });
   }
   
-  Document newUnrvwdTrx(get_self(), issuer, std::move(trx_info));
+  Document newevent(get_self(), issuer, std::move(trx_info));
 
-  Edge(get_self(), issuer, bucketHash, newUnrvwdTrx.getHash(), name(UNREVIEWED_EDGE));
+  Edge(get_self(), issuer, bucketHash, newevent.getHash(), name(EVENT_EDGE));
+}
+
+ACTION
+accounting::bindevent(name updater, checksum256 event_hash, checksum256 component_hash)
+{
+  TRACE_FUNCTION()
+  
+  requireTrusted(updater);
+  require_auth(updater);
+
+  EOS_CHECK(
+    m_documentGraph.getEdgesFrom(event_hash, name(COMPONENT_TYPE)).empty(),
+    util::to_str("Event: ", event_hash, " is already binded to a component")
+  )
+
+  EOS_CHECK(
+    m_documentGraph.getEdgesFrom(component_hash, name(EVENT_EDGE)).empty(),
+    util::to_str("Component: ", component_hash, " is already binded to an event")
+  )
+
+  parent(updater, event_hash, component_hash, COMPONENT_TYPE, EVENT_EDGE);
+}
+
+ACTION
+accounting::unbindevent(name updater, checksum256 event_hash, checksum256 component_hash)
+{
+  TRACE_FUNCTION()
+  
+  require_auth(updater);
+  requireTrusted(updater);
+
+  auto trxEdge = m_documentGraph.getEdgesFrom(component_hash, name(TRX_TYPE));
+
+  EOS_CHECK(
+    trxEdge.size() == 1,
+    util::to_str("Missing transaction edge from component: ", component_hash)
+  )
+
+  checksum256 trxHash = trxEdge[0].getToNode();
+  //TODO: Verify if the component's transaction hasn't been approved yet
+
+  auto unapprovedEdge = m_documentGraph.getEdgesFrom(trxHash, name(UNAPPROVED_TRX));
+
+  EOS_CHECK(
+    !unapprovedEdge.empty(),
+    util::to_str("Cannot unbind event from approved transaction: ", trxHash)
+  )
+
+  Edge::get(get_self(), event_hash, component_hash, name(COMPONENT_TYPE)).erase();
+  Edge::get(get_self(), component_hash, event_hash, name(EVENT_EDGE)).erase();
 }
 
 ACTION
@@ -367,7 +506,7 @@ accounting::remtrustacnt(name account)
 }
 
 ACTION 
-accounting::clearunrvwd(int64_t max_removable_trx)
+accounting::clearevent(int64_t max_removable_trx)
 {
   TRACE_FUNCTION()
 
@@ -378,7 +517,7 @@ accounting::clearunrvwd(int64_t max_removable_trx)
   //int64_t maxToRemove = MAX_REMOVABLE_DOCS;
   int64_t maxToRemove = max_removable_trx;
 
-  while ((edgePair = Edge::getIfExists(get_self(), getUnreviewedTrxBucket(), name(UNREVIEWED_EDGE)),
+  while ((edgePair = Edge::getIfExists(get_self(), getEventBucket(), name(EVENT_EDGE)),
          edgePair.first) && maxToRemove--) {
     Edge& edge = edgePair.second;
     //Erase document and its edges
@@ -433,11 +572,11 @@ accounting::clean(ContentGroups& tables)
     util::cleanuptable<cursor_table>(get_self()); 
   }
 
-  if (cw.getOrFail(DETAILS, "unreviewedtrx")->getAs<int64_t>() == 1) {
+  if (cw.getOrFail(DETAILS, "events")->getAs<int64_t>() == 1) {
     eosio::action(
       eosio::permission_level{get_self(), "active"_n},
       get_self(),
-      "clearunrvwd"_n,
+      "clearevent"_n,
       std::make_tuple(int64_t(100))
     ).send();
   }
@@ -458,7 +597,7 @@ accounting::requireTrusted(name account)
       return ctn.getAs<name>() == account;
     };
 
-    //Warning: I'm assuming that content_group_label is always the first
+    //WARNING: I'm assuming that content_group_label is always the first
     //item so I skip it
     auto it = std::find_if(group->begin() + 1, group->end(), isSameAccnt);
 
@@ -470,106 +609,104 @@ accounting::requireTrusted(name account)
 }
 
 checksum256 
-accounting::getUnreviewedTrxBucket() 
+accounting::getEventBucket() 
 {
   TRACE_FUNCTION()
   
   auto rootHash = getRoot().getHash();
-  name edgeName = name(UNREVIEWED_BUCKET_EDGE);
+  name edgeName = name(EVENT_BUCKET_EDGE);
   
   //Check if we already have the bucket
   auto edges = m_documentGraph.getEdgesFrom(rootHash, edgeName);
   
   //Create if it doesn't exit
   if (edges.empty()) {
-    Document unreviewedTrxBucket = Document(get_self(), get_self(), ContentGroups{
+    Document eventBucket = Document(get_self(), get_self(), ContentGroups{
       ContentGroup{
         Content{CONTENT_GROUP_LABEL, DETAILS}
       },
-      ContentGroup{
-        Content{CONTENT_GROUP_LABEL, SYSTEM},
-        Content{NAME_LABEL, UNREVIEWED_BUCKET_LABEL},
-        Content{TYPE_LABEL, UNREVIEWED_EDGE}
-      },
+      getSystemGroup(EVENT_BUCKET_LABEL, EVENT_EDGE)
     });
-    Edge(get_self(), get_self(), rootHash, unreviewedTrxBucket.getHash(), edgeName);
+    Edge(get_self(), get_self(), rootHash, eventBucket.getHash(), edgeName);
 
-    return unreviewedTrxBucket.getHash();
+    return eventBucket.getHash();
   }
   else {
-    EOS_CHECK(edges.size() == 1, "There are more than 1 unreviewed transactions bucket");
+    EOS_CHECK(edges.size() == 1, "There are more than 1 events bucket");
 
     return edges[0].to_node;
   }  
 }
 
-ContentGroups
-accounting::getOpeningsAccount(checksum256 parent)
+void 
+accounting::createComponents(checksum256 trx_hash, Transaction& trx, name creator) 
 {
-  ContentGroup details {
-    Content(CONTENT_GROUP_LABEL, "details"),
-    Content(ACCOUNT_NAME, "Opening Balances"),
-    Content(ACCOUNT_TYPE, ACCOUNT_GROUP::kEquity),
-    Content(PARENT_ACCOUNT, parent)
-  };
+  TRACE_FUNCTION()
 
-  /*
-  ContentGroup openings {
-    Content(CONTENT_GROUP_LABEL, "opening_balances"),
-    Content("opening_balance_usd", asset(0, symbol("USD", 4))),
-    Content("opening_balance_btc", asset(0, symbol("BTC", 12)))
-  };
-  */
+  for (auto& compnt : trx.getComponents()) {
 
-  return {
-    details,
-    getSystemGroup("opening_balances", "account"),
-    /*, openings*/
-  };
+    Document compntAcct(get_self(), compnt.account);
+    
+    Document compntDoc(get_self(), creator, { getTrxComponent(compnt.account, 
+                                                             compnt.memo, 
+                                                             compnt.amount,
+                                                             DETAILS),
+                                              getSystemGroup(COMPONENT_LABEL, COMPONENT_TYPE) });
+
+    LOG_MESSAGE(util::to_str("Adding asset:", compnt.amount));
+
+    addAssetToAccount(compnt.account, compnt.amount);
+    recalculateGlobalBalances(compnt.account, trx.getLedger());
+
+    /** Connections
+     *  component --> 'transaction' --> transaction
+     *  component <-- 'component'   <-- transaction 
+     *  component --> 'account' --> account
+     */
+    parent(creator, trx_hash, compntDoc.getHash(), COMPONENT_TYPE, TRX_TYPE);
+
+    if (compnt.event) {
+      eosio::action(
+        eosio::permission_level{creator, "active"_n},
+        get_self(),
+        "bindevent"_n,
+        std::make_tuple(creator, *compnt.event, compntDoc.getHash())
+      ).send();
+    }
+
+    Edge compntToAcc(get_self(), creator, compntDoc.getHash(), compntAcct.getHash(), name(ACCOUNT_EDGE));
+  }
 }
 
-ContentGroups
-accounting::getEquityAccount(checksum256 parent)
+std::string 
+accounting::getAccountPath(std::string account, checksum256 parent, const checksum256& ledger) 
 {
-  ContentGroup details {
-    Content(CONTENT_GROUP_LABEL, DETAILS),
-    Content(ACCOUNT_NAME, "Equity"),
-    Content(ACCOUNT_TYPE, ACCOUNT_GROUP::kEquity),
-    Content(PARENT_ACCOUNT, parent)
-  };
+  TRACE_FUNCTION()
 
-  /*
-  ContentGroup openings {
-    Content(CONTENT_GROUP_LABEL, "opening_balances"),
-    Content("opening_balance_usd", asset(0, symbol("USD", 4))),
-    Content("opening_balance_usd", asset(0, symbol("BTC", 12)))
-  }; */
+  const char* SEPARATOR = " > ";
 
-  return {
-    details,
-    getSystemGroup("equity", "account"),
-    /*, openings*/
-  };
-}
+  TableWrapper<document_table> docs(get_self(), get_self().value);
 
-checksum256 
-accounting::getOpeningsHash(checksum256 ledger)
-{
-  auto equityHash = Document::hashContents(getEquityAccount(ledger));
-  auto openingBalancesHash = Document::hashContents(getOpeningsAccount(equityHash));
+  while (parent != ledger) {
+    auto doc = docs.get_by<"idhash"_n>(parent);
 
-  return openingBalancesHash;
-}
+    ContentWrapper accWrapper = doc.getContentWrapper();
 
-ContentGroup
-accounting::getTrxHeader(string memo, time_point date, checksum256 ledger)
-{
-  return {
-    Content{CONTENT_GROUP_LABEL, "header"},
-    Content{TRX_MEMO, std::move(memo)},
-    Content{TRX_DATE, date},
-    Content{TRX_LEDGER, ledger}
-  };
+    const string& accountName = accWrapper.getOrFail(DETAILS, ACCOUNT_NAME)->getAs<std::string>();
+
+    account = util::to_str(accountName, SEPARATOR, account);
+
+    auto toParentEdges = m_documentGraph.getEdgesFrom(doc.getHash(), name(OWNED_BY));
+
+    EOS_CHECK(
+      !toParentEdges.empty(),
+      util::to_str("Missing edge [ownedby] from account: ",  doc.getHash(), " to parent")
+    )
+
+    parent = toParentEdges[0].getToNode();
+  }
+
+  return account;
 }
 
 ContentGroup
@@ -594,6 +731,8 @@ accounting::parent(name creator,
                    string_view fromToEdge, 
                    string_view toFromEdge)
 {
+  TRACE_FUNCTION()
+
   Edge(get_self(), creator, parent, child, name(fromToEdge));
   Edge(get_self(), creator, child, parent, name(toFromEdge));
 }
@@ -610,12 +749,13 @@ getRootContentGroups() {
 }
 
 ContentGroup
-accounting::getSystemGroup(const char* nodeName, const char* type)
+accounting::getSystemGroup(std::string nodeName, std::string type)
 {
+  //TODO: Add contract version
   return {
     Content(CONTENT_GROUP_LABEL, SYSTEM),
-    Content(NAME_LABEL, nodeName),
-    Content(TYPE_LABEL, type)
+    Content(NAME_LABEL, std::move(nodeName)),
+    Content(TYPE_LABEL, std::move(type))
   };
 }
 
@@ -635,6 +775,102 @@ name
 accounting::getName() 
 {
   return g_contractName;
+}
+
+Document
+accounting::getAccountBalances(checksum256 account)
+{
+  return Document(get_self(),
+                  Edge::get(get_self(), account, name(BALANCES)).getToNode());
+}
+
+std::vector<accounting::Balance>
+accounting::getAccountGlobalBalances(checksum256 account)
+{
+  auto balances = getAccountBalances(account);
+  auto balancesCW = balances.getContentWrapper();
+
+  std::vector<Balance> globalBals;
+
+  auto balancesGroup = balancesCW.getGroupOrFail(BALANCES);
+
+  for (auto& content : *balancesGroup) {
+    if (content.label != CONTENT_GROUP_LABEL && 
+        util::containsPrefix(content.label, "global_")) {
+      globalBals.push_back({content.label, content.getAs<asset>()});
+    }
+  }
+
+  return globalBals;
+}
+
+void 
+accounting::addAssetToAccount(checksum256 account, asset amount)
+{
+  TRACE_FUNCTION()
+
+  auto balancesDoc = getAccountBalances(account);
+
+  addToBalance(balancesDoc, {
+    { util::to_str("account_", amount.symbol.code()), amount },
+    { util::to_str("global_", amount.symbol.code()), amount },
+  });
+}
+
+void
+accounting::addToBalance(Document& balancesDoc, 
+                         const std::vector<Balance>& balances)
+{ 
+  auto balancesCW = balancesDoc.getContentWrapper();
+
+  auto [groupIdx, balancesGroup] = balancesCW.getGroup(BALANCES);
+
+  EOS_CHECK(
+    balancesGroup != nullptr,
+    util::to_str("Missing balances group from balance document:", balancesDoc.getHash())
+  )
+
+  for (auto& balance: balances) {
+    
+    asset newAssetBalance;
+
+    if (auto [_, item] = balancesCW.get(groupIdx, balance.label); item) {
+      auto assetBalance = item->getAs<asset>();
+      newAssetBalance = assetBalance + balance.amount;   
+    }
+    else {
+      newAssetBalance = balance.amount;
+    }
+
+    ContentWrapper::insertOrReplace(*balancesGroup, Content{balance.label, newAssetBalance});
+  }
+
+  m_documentGraph.updateDocument(get_self(), 
+                                 balancesDoc.getHash(), 
+                                 std::move(balancesCW.getContentGroups()));
+}
+
+void
+accounting::recalculateGlobalBalances(checksum256 account, checksum256 ledger)
+{
+  TRACE_FUNCTION()
+
+  if (account == ledger) {
+    return;
+  }
+
+  auto accountBalances = getAccountBalances(account);
+
+  auto childrenAccEdges = m_documentGraph.getEdgesFrom(account, name(ACCOUNT_EDGE));
+
+  for (auto& accountEdge: childrenAccEdges) {
+    auto accGlobalBalances = getAccountGlobalBalances(accountEdge.getToNode());
+    addToBalance(accountBalances, accGlobalBalances);
+  }
+
+  auto parentHash = Edge::get(get_self(), account, name(OWNED_BY)).getToNode();
+
+  recalculateGlobalBalances(parentHash, ledger);
 }
 
 bool
