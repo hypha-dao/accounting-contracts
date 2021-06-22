@@ -44,6 +44,7 @@ class Transaction
     asset amount;
     string memo;
     std::optional<checksum256> event;
+    std::optional<checksum256> hash;
   };
 
   std::vector<asset>
@@ -60,6 +61,7 @@ class Transaction
   {
     return {
       Content{CONTENT_GROUP_LABEL, DETAILS},
+      Content{TRX_NAME, m_name},
       Content{TRX_MEMO, m_memo},
       Content{TRX_DATE, m_date},
       Content{TRX_LEDGER, m_ledger},
@@ -78,9 +80,13 @@ class Transaction
   {
     return m_id;
   }
-  
+
+  bool
+  shouldUpdate(Transaction& original);
+    
  private:
   string m_memo;
+  string m_name;
   time_point m_date;
   checksum256 m_ledger;
   int64_t m_id;

@@ -24,14 +24,16 @@ Transaction::Transaction(ContentGroups& trxInfo)
 
   //Check all the details fields are present
   m_memo = trx.getOrFail(hIdx, TRX_MEMO).second->getAs<string>();
+  m_name = trx.get(hIdx, TRX_NAME).second->getAs<string>();
   m_date = trx.getOrFail(hIdx, TRX_DATE).second->getAs<time_point>();
   m_ledger = trx.getOrFail(hIdx, TRX_LEDGER).second->getAs<checksum256>();
   m_id = trx.getOrFail(hIdx, TRX_ID).second->getAs<int64_t>();
 
-  EOS_CHECK(
-    trxInfo.size() >= 2,
-    "Transaction must contain at least 1 component"
-  );
+  //Transaction might be empty
+  // EOS_CHECK(
+  //   trxInfo.size() >= 2,
+  //   "Transaction must contain at least 1 component"
+  // );
 
   //Extract the components
   for (size_t i = 0; i < trxInfo.size(); ++i) {
@@ -86,6 +88,7 @@ Transaction::Transaction(Document& trxDoc, DocumentGraph& docgraph)
 
   //Check all the details fields are present
   m_memo = trx.getOrFail(hIdx, TRX_MEMO).second->getAs<string>();
+  m_name = trx.getOrFail(hIdx, TRX_NAME).second->getAs<string>();
   m_date = trx.getOrFail(hIdx, TRX_DATE).second->getAs<time_point>();
   m_ledger = trx.getOrFail(hIdx, TRX_LEDGER).second->getAs<checksum256>();
   m_id = trx.getOrFail(hIdx, TRX_ID).second->getAs<int64_t>();
@@ -93,8 +96,12 @@ Transaction::Transaction(Document& trxDoc, DocumentGraph& docgraph)
   auto componentEdges = docgraph.getEdgesFrom(trxDoc.getHash(), name(COMPONENT_TYPE));
 
   for (Edge& componentEdge : componentEdges) {
-    Document cmpDoc(accounting::getName(), componentEdge.getToNode());
+    const auto cmpHash = componentEdge.getToNode();
+    Document cmpDoc(accounting::getName(), cmpHash);
+    
     Transaction::Component cmp(cmpDoc.getContentGroups());
+
+    cmp.hash = cmpHash;
 
     if (auto [exists, eventEdge] = Edge::getIfExists(accounting::getName(), 
                                                      cmpDoc.getHash(), 
@@ -203,6 +210,18 @@ Transaction::verifyBalanced()
   }
 
   return allAssets;
+}
+
+bool 
+Transaction::shouldUpdate(Transaction& original) 
+{
+  if (original.m_name != m_name ||
+      original.m_memo != m_memo ||
+      original.m_date != m_date) {
+    return true;
+  }
+
+  return false;
 }
 
 }

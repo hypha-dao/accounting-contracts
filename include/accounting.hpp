@@ -2,6 +2,7 @@
 
 #include <string_view>
 #include <vector>
+#include <map>
 
 #include <eosio/eosio.hpp>
 #include <eosio/crypto.hpp>
@@ -149,6 +150,16 @@ CONTRACT accounting : public contract {
   */ 
   ACTION
   remsetting(string setting);
+
+  /**
+   * @brief Updates account information
+   * 
+   * @param account_hash
+   * @param account_info  
+   * @return ACTION 
+   */
+  ACTION
+  updateacc(name updater, checksum256 account_hash, ContentGroups account_info);
   
   /**
   * Adds an account to the trusted accounts group. Necesary to trigger newevent action
@@ -161,6 +172,9 @@ CONTRACT accounting : public contract {
   */
   ACTION
   remtrustacnt(name account);
+
+  ACTION
+  deletetrx(name deleter, checksum256 trx_hash);
 
   /**
    * @brief Binds an event with a component document
@@ -264,14 +278,30 @@ CONTRACT accounting : public contract {
    * @param account 
    * @return std::vector<asset> [Balances]
    */
-  std::vector<Balance>
+  std::map<std::string, asset>
   getAccountGlobalBalances(checksum256 account);
+
+  /**
+   * @brief Get's the local balances of an account
+   * 
+   * @param account 
+   * @return std::vector<asset> [Balances]
+   */
+  std::map<std::string, asset>
+  getAccountLocalBalances(checksum256 account);
+
+  void 
+  setGlobalBalances(Document& balancesDoc,
+                    std::map<std::string, asset>& balances);
 
   ContentGroup
   getTrxComponent(checksum256 account, 
                   string memo, 
                   asset amount, 
                   string label = "component");
+
+  ContentGroup
+  getBalancesSystemGroup(int64_t id);
 
   /**
   * @brief Creates a parent --> child & parent <-- child
