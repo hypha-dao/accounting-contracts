@@ -58,6 +58,14 @@ Transaction::Transaction(ContentGroups& trxInfo)
       auto [idx, c] = trx.getOrFail(i, COMPONENT_ACCOUNT, "Missing account content on trx component");
       component.account = c->getAs<checksum256>();
     }
+    {
+      auto [idx, c] = trx.getOrFail(i, COMPONENT_FROM, "Missing 'from' content on trx component");
+      component.from = c->getAs<string>();
+    }
+    {
+      auto [idx, c] = trx.getOrFail(i, COMPONENT_TO, "Missing 'to' content on trx component");
+      component.to = c->getAs<string>();
+    }
 
     //If there is no ammount, then it should be implied
     if (auto [idx, c] = trx.get(i, COMPONENT_AMMOUNT); c) {
@@ -128,6 +136,8 @@ Transaction::Component::Component(ContentGroups& data)
   account = cw.getOrFail(detailsIdx, COMPONENT_ACCOUNT).second->getAs<checksum256>();
   memo = cw.getOrFail(detailsIdx, COMPONENT_MEMO).second->getAs<std::string>();
   amount = cw.getOrFail(detailsIdx, COMPONENT_AMMOUNT).second->getAs<asset>();
+  from = cw.getOrFail(detailsIdx, COMPONENT_FROM).second->getAs<std::string>();
+  to = cw.getOrFail(detailsIdx, COMPONENT_TO).second->getAs<std::string>();
 }
 
 static int64_t 
@@ -137,15 +147,35 @@ getSign(int64_t v)
 }
 
 std::vector<asset>
-Transaction::verifyBalanced()
+Transaction::verifyBalanced(DocumentGraph& docgraph)
 {
   TRACE_FUNCTION()
 
   std::map<uint64_t, asset> assetsBySymb;
   std::vector<asset> allAssets;
   
-  for (const auto& component : m_components) {
+  //Use a copy of the component since we might need to invert the sign of the amount
+  for (Component component : m_components) {
     auto& asset = component.amount;
+
+    auto accountEdges = docgraph.getEdgesFromOrFail(*component.hash, name(COMPONENT_ACCOUNT));
+
+    EOS_CHECK(
+      accountEdges.size() == 1,
+      "There has to exists only 1 account edge from the component"
+    )
+
+    auto accountDoc = Document(accounting::getName(), accountEdges[0].getToNode());
+
+    auto accountCW = accountDoc.getContentWrapper();
+
+    auto tagType = accountCW.getOrFail(DETAILS, ACCOUNT_TAG_TYPE)->getAs<string>();
+
+    //Check if the amount belongs to a credit or a debit account
+    //if credit we have to negate the amount
+    if (tagType == CREDIT_TAG_TYPE) {
+      asset.set_amount(asset.amount * -1);
+    }
     
     auto [assetIt, inserted] = assetsBySymb.insert({asset.symbol.raw(), asset});  
 

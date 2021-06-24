@@ -19,6 +19,8 @@ using eosio::time_point;
 using std::string;
 using std::vector;
 
+class DocumentGraph;
+
 class Transaction
 {
  public:
@@ -33,7 +35,7 @@ class Transaction
    * 
    * @param trxDoc 
    */
-  Transaction(Document& trxDoc, class DocumentGraph& docgraph);
+  Transaction(Document& trxDoc, DocumentGraph& docgraph);
 
   class Component
   {
@@ -43,12 +45,14 @@ class Transaction
     checksum256 account;
     asset amount;
     string memo;
+    string from;
+    string to;
     std::optional<checksum256> event;
     std::optional<checksum256> hash;
   };
 
   std::vector<asset>
-  verifyBalanced();
+  verifyBalanced(DocumentGraph& docgraph);
 
   inline const vector<Component>&
   getComponents() const 

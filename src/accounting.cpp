@@ -232,7 +232,9 @@ accounting::createtrxwe(name creator, ContentGroups& trx_info)
 
   Document componentDoc(get_self(), creator, { getTrxComponent(checksum256(), 
                                                              "", 
-                                                             asset(), 
+                                                             asset(),
+                                                             "", 
+                                                             "", 
                                                              DETAILS),
                                                getSystemGroup(COMPONENT_LABEL, COMPONENT_TYPE)});
 
@@ -428,7 +430,7 @@ accounting::balancetrx(name issuer, checksum256 trx_hash)
 
   Transaction trx(trxDoc, m_documentGraph);
 
-  std::vector<asset> assets = trx.verifyBalanced();
+  std::vector<asset> assets = trx.verifyBalanced(m_documentGraph);
 
   if (assets.empty() || assets.size() > 2) {
     EOS_CHECK(
@@ -782,6 +784,8 @@ accounting::createComponents(checksum256 trx_hash, Transaction& trx, name creato
 {
   TRACE_FUNCTION()
 
+  LOG_MESSAGE(util::to_str("Components:", trx.getComponents().size()));
+
   for (auto& compnt : trx.getComponents()) {
 
     Document compntAcct(get_self(), compnt.account);
@@ -789,6 +793,8 @@ accounting::createComponents(checksum256 trx_hash, Transaction& trx, name creato
     Document compntDoc(get_self(), creator, { getTrxComponent(compnt.account, 
                                                              compnt.memo, 
                                                              compnt.amount,
+                                                             compnt.from,
+                                                             compnt.to,
                                                              DETAILS),
                                               getSystemGroup(COMPONENT_LABEL, COMPONENT_TYPE) });
 
@@ -847,6 +853,8 @@ ContentGroup
 accounting::getTrxComponent(checksum256 account, 
                             string memo, 
                             asset amount, 
+                            string from, 
+                            string to, 
                             string label)
 {
   return {
@@ -854,6 +862,8 @@ accounting::getTrxComponent(checksum256 account,
     Content{COMPONENT_ACCOUNT, account},
     Content{COMPONENT_DATE, current_time_point()},
     Content{COMPONENT_MEMO, memo},
+    Content{COMPONENT_FROM, from},
+    Content{COMPONENT_TO, to},
     Content{COMPONENT_AMMOUNT, amount}
   };
 }

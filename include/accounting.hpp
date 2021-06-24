@@ -82,6 +82,55 @@ CONTRACT accounting : public contract {
 
   using currencies_table = multi_index<"currencies"_n, currency>;
 
+  ACTION
+  fixcmp(std::vector<checksum256> documents)
+  {
+    require_auth(get_self());
+    const size_t maxDocs = 10;
+
+    for (size_t i = 0; i < maxDocs; ++i) {
+      Document docs(get_self(), documents[i]);
+      auto cw = docs.getContentWrapper();
+      
+      auto type = cw.getOrFail(SYSTEM, TYPE_LABEL)->getAs<string>();
+
+      EOS_CHECK(
+        type == "component",
+        util::to_str("Wrong document type: ", type)
+      )
+
+      bool hasNewContents = false;
+
+      auto details = cw.getGroupOrFail(DETAILS);
+
+      if (!cw.exists(DETAILS, COMPONENT_FROM)) {
+        cw.insertOrReplace(*details, Content{COMPONENT_FROM, ""});
+      }
+
+      if (!cw.exists(DETAILS, COMPONENT_TO)) {
+        cw.insertOrReplace(*details, Content{COMPONENT_TO, ""});
+      }
+
+      if (hasNewContents) {
+        m_documentGraph.updateDocument(
+          get_self(),
+          docs.getHash(),
+          cw.getContentGroups()
+        );
+      }
+    }
+
+    if (documents.size() > maxDocs) {
+      std::vector<checksum256> nextBatch(documents.begin() + maxDocs, documents.end());
+      eosio::action(
+        eosio::permission_level{get_self(), "active"_n},
+        get_self(),
+        "fixcmp"_n,
+        std::make_tuple(nextBatch)
+      ).send();
+    }
+  }
+
   /**
   * Creates the root document (useful for testing)
   */ 
@@ -298,6 +347,8 @@ CONTRACT accounting : public contract {
   getTrxComponent(checksum256 account, 
                   string memo, 
                   asset amount, 
+                  string from, 
+                  string to, 
                   string label = "component");
 
   ContentGroup
