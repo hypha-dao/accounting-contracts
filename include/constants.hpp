@@ -43,6 +43,7 @@ constexpr auto COMPONENT_TYPE = "component";
 constexpr auto COMPONENT_ACCOUNT = "account";
 constexpr auto COMPONENT_FROM = "from";
 constexpr auto COMPONENT_TO = "to";
+constexpr auto COMPONENT_TAG_TYPE = "type";
 constexpr auto BALANCE_ACCOUNT = COMPONENT_ACCOUNT;
 constexpr auto COMPONENT_DATE = "create_date";
 constexpr auto SETTINGS = "settings";

@@ -79,7 +79,12 @@ accounting::createacc(name creator, ContentGroups& account_info)
 
   auto accountType = contentWrap.getOrFail(dIdx, ACCOUNT_TYPE).second->getAs<int64_t>();
   
-  auto accountTagType = contentWrap.getOrFail(dIdx, ACCOUNT_TAG_TYPE).second->getAs<string>();
+  std::string accountTagType = "";
+
+  if (auto [tagIdx, accTagType] = contentWrap.get(dIdx, ACCOUNT_TAG_TYPE); 
+      accTagType) {
+    accountTagType = accTagType->getAs<std::string>();
+  }
 
   auto accountCode = contentWrap.getOrFail(dIdx, ACCOUNT_CODE).second->getAs<string>();
 
@@ -233,7 +238,8 @@ accounting::createtrxwe(name creator, ContentGroups& trx_info)
   Document componentDoc(get_self(), creator, { getTrxComponent(checksum256(), 
                                                              "", 
                                                              asset(),
-                                                             "", 
+                                                             "",
+                                                             "",
                                                              "", 
                                                              DETAILS),
                                                getSystemGroup(COMPONENT_LABEL, COMPONENT_TYPE)});
@@ -795,6 +801,7 @@ accounting::createComponents(checksum256 trx_hash, Transaction& trx, name creato
                                                              compnt.amount,
                                                              compnt.from,
                                                              compnt.to,
+                                                             compnt.type,
                                                              DETAILS),
                                               getSystemGroup(COMPONENT_LABEL, COMPONENT_TYPE) });
 
@@ -854,7 +861,8 @@ accounting::getTrxComponent(checksum256 account,
                             string memo, 
                             asset amount, 
                             string from, 
-                            string to, 
+                            string to,
+                            string type,
                             string label)
 {
   return {
@@ -864,6 +872,7 @@ accounting::getTrxComponent(checksum256 account,
     Content{COMPONENT_MEMO, memo},
     Content{COMPONENT_FROM, from},
     Content{COMPONENT_TO, to},
+    Content{COMPONENT_TAG_TYPE, type},
     Content{COMPONENT_AMMOUNT, amount}
   };
 }

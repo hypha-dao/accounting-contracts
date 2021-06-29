@@ -88,7 +88,7 @@ CONTRACT accounting : public contract {
     require_auth(get_self());
     const size_t maxDocs = 10;
 
-    for (size_t i = 0; i < maxDocs; ++i) {
+    for (size_t i = 0; i < std::min(maxDocs, documents.size()); ++i) {
       Document docs(get_self(), documents[i]);
       auto cw = docs.getContentWrapper();
       
@@ -105,10 +105,17 @@ CONTRACT accounting : public contract {
 
       if (!cw.exists(DETAILS, COMPONENT_FROM)) {
         cw.insertOrReplace(*details, Content{COMPONENT_FROM, ""});
+        hasNewContents = true;
       }
 
       if (!cw.exists(DETAILS, COMPONENT_TO)) {
         cw.insertOrReplace(*details, Content{COMPONENT_TO, ""});
+        hasNewContents = true;
+      }
+
+      if (!cw.exists(DETAILS, COMPONENT_TAG_TYPE)) {
+        cw.insertOrReplace(*details, Content{COMPONENT_TAG_TYPE, "DEBIT"});
+        hasNewContents = true;
       }
 
       if (hasNewContents) {
@@ -349,7 +356,8 @@ CONTRACT accounting : public contract {
                   asset amount, 
                   string from, 
                   string to, 
-                  string label = "component");
+                  string type,
+                  string label);
 
   ContentGroup
   getBalancesSystemGroup(int64_t id);

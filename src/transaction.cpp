@@ -54,26 +54,42 @@ Transaction::Transaction(ContentGroups& trxInfo)
       auto [idx, c] = trx.getOrFail(i, COMPONENT_MEMO, "Missing memo content on trx component");
       component.memo = c->getAs<string>();
     }
+    
     {
       auto [idx, c] = trx.getOrFail(i, COMPONENT_ACCOUNT, "Missing account content on trx component");
       component.account = c->getAs<checksum256>();
     }
-    {
-      auto [idx, c] = trx.getOrFail(i, COMPONENT_FROM, "Missing 'from' content on trx component");
+
+    if (auto [idx, c] = trx.get(i, COMPONENT_FROM); c) {  
       component.from = c->getAs<string>();
     }
-    {
-      auto [idx, c] = trx.getOrFail(i, COMPONENT_TO, "Missing 'to' content on trx component");
+
+    if (auto [idx, c] = trx.getOrFail(i, COMPONENT_TO); c) {
       component.to = c->getAs<string>();
+    }
+
+    {
+      auto [idx, c] = trx.getOrFail(i, COMPONENT_TAG_TYPE, "Missing 'type' content on trx component");
+      component.type = c->getAs<string>();
+      EOS_CHECK(
+        component.type == DEBIT_TAG_TYPE || component.type == CREDIT_TAG_TYPE,
+        util::to_str("Invalid component type:", component.type, " expected [", DEBIT_TAG_TYPE, " or ", CREDIT_TAG_TYPE, "]")
+      );
     }
 
     //If there is no ammount, then it should be implied
     if (auto [idx, c] = trx.get(i, COMPONENT_AMMOUNT); c) {
-        component.amount = c->getAs<asset>();
-        EOS_CHECK(component.amount.is_valid(), "Not valid asset: " + 
-                                component.amount.to_string() + " at " + 
-                                std::to_string(i) + 
-                                " memo:" +component.memo);
+
+      component.amount = c->getAs<asset>();
+
+      if (component.type == CREDIT_TAG_TYPE) {
+        component.amount.set_amount(component.amount.amount * -1);
+      }
+
+      EOS_CHECK(component.amount.is_valid(), "Not valid asset: " + 
+                component.amount.to_string() + " at " + 
+                std::to_string(i) + 
+                " memo:" + component.memo);
     }
 
     if (auto [idx, event] = trx.get(i, EVENT_EDGE); event) {
@@ -138,6 +154,11 @@ Transaction::Component::Component(ContentGroups& data)
   amount = cw.getOrFail(detailsIdx, COMPONENT_AMMOUNT).second->getAs<asset>();
   from = cw.getOrFail(detailsIdx, COMPONENT_FROM).second->getAs<std::string>();
   to = cw.getOrFail(detailsIdx, COMPONENT_TO).second->getAs<std::string>();
+  type = cw.getOrFail(detailsIdx, COMPONENT_TYPE).second->getAs<std::string>();
+
+  if (type == CREDIT_TAG_TYPE) {
+    amount.set_amount(amount.amount * -1);
+  }
 }
 
 static int64_t 
@@ -158,22 +179,9 @@ Transaction::verifyBalanced(DocumentGraph& docgraph)
   for (Component component : m_components) {
     auto& asset = component.amount;
 
-    auto accountEdges = docgraph.getEdgesFromOrFail(*component.hash, name(COMPONENT_ACCOUNT));
-
-    EOS_CHECK(
-      accountEdges.size() == 1,
-      "There has to exists only 1 account edge from the component"
-    )
-
-    auto accountDoc = Document(accounting::getName(), accountEdges[0].getToNode());
-
-    auto accountCW = accountDoc.getContentWrapper();
-
-    auto tagType = accountCW.getOrFail(DETAILS, ACCOUNT_TAG_TYPE)->getAs<string>();
-
-    //Check if the amount belongs to a credit or a debit account
+    //Check if the type of the component is credit or a debit
     //if credit we have to negate the amount
-    if (tagType == CREDIT_TAG_TYPE) {
+    if (component.type == CREDIT_TAG_TYPE) {
       asset.set_amount(asset.amount * -1);
     }
     

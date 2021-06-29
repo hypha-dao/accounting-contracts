@@ -47,6 +47,7 @@ class Transaction
     string memo;
     string from;
     string to;
+    string type;
     std::optional<checksum256> event;
     std::optional<checksum256> hash;
   };
