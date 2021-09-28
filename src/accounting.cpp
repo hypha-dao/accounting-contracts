@@ -81,6 +81,7 @@ accounting::createacc(name creator, ContentGroups& account_info)
   
   std::string accountTagType = "";
 
+  //TODO: Fail if account_tag_type is not provided
   if (auto [tagIdx, accTagType] = contentWrap.get(dIdx, ACCOUNT_TAG_TYPE); 
       accTagType) {
     accountTagType = accTagType->getAs<std::string>();
@@ -252,6 +253,7 @@ accounting::createtrxwe(name creator, ContentGroups& trx_info)
 ACTION
 accounting::updateacc(name updater, checksum256 account_hash, ContentGroups account_info) 
 {
+  //TODO: Delete path name from all accounts
   require_auth(updater);
   requireTrusted(updater);
 
@@ -299,7 +301,42 @@ accounting::updateacc(name updater, checksum256 account_hash, ContentGroups acco
   
   *accountCW.getGroupOrFail(DETAILS) = newAccountDetails;
   
-  m_documentGraph.updateDocument(updater, accountDoc.getHash(), accountDoc.getContentGroups());
+  accountDoc = m_documentGraph.updateDocument(updater, accountDoc.getHash(), accountDoc.getContentGroups());
+
+  account_hash = accountDoc.getHash();
+
+  auto parentHash = Edge::get(get_self(), account_hash, name(OWNED_BY)).getToNode();
+
+  if (auto [_, newParent] = newInfoCW.get(newDetailsIdx, PARENT_ACCOUNT); 
+      newParent) {
+    auto newParentHash = newParent->getAs<checksum256>();
+    
+    if (parentHash != newParentHash) {
+      //Verify new parent exits
+      Document newParent(get_self(), newParentHash);
+      
+      EOS_CHECK(
+        newParent.getContentWrapper()
+        .getOrFail(SYSTEM, TYPE_LABEL)
+        ->getAs<std::string>() == "account",
+        util::to_str("Expected 'account' as document type for: ", newParentHash)
+      )
+
+      //Delete old edges
+      Edge::get(get_self(), parentHash, account_hash, name(ACCOUNT_EDGE)).erase();
+      Edge::get(get_self(), account_hash, name(OWNED_BY)).erase();
+
+      //Create new ones
+      parent(updater, newParentHash, account_hash);
+
+      auto oldLedger = getAccountLedger(parentHash);
+
+      auto newLedger = getAccountLedger(newParentHash);
+
+      recalculateGlobalBalances(parentHash, oldLedger);
+      recalculateGlobalBalances(newParentHash, newLedger);
+    }
+  }
 
   //In order to support changing name, we must also store ledger or find it
   //by navigating all the parent accounts
@@ -491,6 +528,10 @@ accounting::newevent(name issuer, ContentGroups trx_info)
       c.last_cursor = trxCursor;
     });
   }
+
+  trx_info.push_back(
+    getSystemGroup(EVENT_LABEL, EVENT_EDGE)
+  );
   
   Document newevent(get_self(), issuer, std::move(trx_info));
 
@@ -772,7 +813,7 @@ accounting::getEventBucket()
       ContentGroup{
         Content{CONTENT_GROUP_LABEL, DETAILS}
       },
-      getSystemGroup(EVENT_BUCKET_LABEL, EVENT_EDGE)
+      getSystemGroup(EVENT_BUCKET_LABEL, "eventbucket")
     });
     Edge(get_self(), get_self(), rootHash, eventBucket.getHash(), edgeName);
 
@@ -785,20 +826,56 @@ accounting::getEventBucket()
   }  
 }
 
+checksum256
+accounting::getAccountLedger(checksum256 account)
+{
+  TRACE_FUNCTION()
+
+  const int32_t maxDepth = 16;
+
+  for (int32_t i = 0; i < maxDepth; ++i) {
+    checksum256 parentHash = Edge::get(get_self(), account, name(OWNED_BY)).getToNode();
+    Document parent(get_self(), parentHash);
+    std::string type = parent
+                       .getContentWrapper()
+                       .getOrFail(SYSTEM, TYPE_LABEL)
+                       ->getAs<std::string>();
+    
+    if (type == "ledger") {
+      return parentHash;
+    }
+
+    account = parentHash;
+  }
+
+  EOS_CHECK(
+    false,
+    util::to_str("Max depth (", maxDepth, ") reached")
+  )
+
+  return checksum256{};
+}
+
 void 
 accounting::createComponents(checksum256 trx_hash, Transaction& trx, name creator) 
 {
   TRACE_FUNCTION()
 
-  LOG_MESSAGE(util::to_str("Components:", trx.getComponents().size()));
+  LOG_MESSAGE(util::to_str("Components: ", trx.getComponents().size()));
 
   for (auto& compnt : trx.getComponents()) {
 
     Document compntAcct(get_self(), compnt.account);
+
+    asset amountFix = compnt.amount;
+
+    if (amountFix.amount < 0) {
+      amountFix.set_amount(amountFix.amount * -1);
+    }
     
     Document compntDoc(get_self(), creator, { getTrxComponent(compnt.account, 
                                                              compnt.memo, 
-                                                             compnt.amount,
+                                                             amountFix,
                                                              compnt.from,
                                                              compnt.to,
                                                              compnt.type,
@@ -808,6 +885,7 @@ accounting::createComponents(checksum256 trx_hash, Transaction& trx, name creato
     LOG_MESSAGE(util::to_str("Adding asset:", compnt.amount));
 
     addAssetToAccount(compnt.account, compnt.amount);
+
     recalculateGlobalBalances(compnt.account, trx.getLedger());
 
     /** Connections
