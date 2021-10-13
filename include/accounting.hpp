@@ -298,8 +298,8 @@ CONTRACT accounting : public contract {
     asset amount;
   };
 
-  checksum256 
-  getAccountLedger(checksum256 account);
+  void
+  createAccountBalance();
 
   void
   createComponents(checksum256 trx_hash, class Transaction& trx, name creator);

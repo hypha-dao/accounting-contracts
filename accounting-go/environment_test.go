@@ -122,7 +122,7 @@ func SetupEnvironment(t *testing.T) *Environment {
 
 	env.Accounting, _ = eostest.CreateAccountFromString(env.ctx, &env.api, "accounting", eostest.DefaultKey())
 
-	//env.DAO, _ = eostest.CreateAccountFromString(env.ctx, &env.api, "dao.hypha", eostest.DefaultKey())
+	env.DAO, _ = eostest.CreateAccountFromString(env.ctx, &env.api, "dao.hypha", eostest.DefaultKey())
 
 	_, env.HusdToken, _ = eostest.CreateAccountWithRandomKey(env.ctx, &env.api, "husd.hypha")
 	_, env.HvoiceToken, _ = eostest.CreateAccountWithRandomKey(env.ctx, &env.api, "hvoice.hypha")

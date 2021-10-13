@@ -86,8 +86,6 @@ Transaction::Transaction(ContentGroups& trxInfo)
         component.amount.set_amount(component.amount.amount * -1);
       }
 
-      //TODO: Store symbol precision in Settings document and fix it
-      
       EOS_CHECK(component.amount.is_valid(), "Not valid asset: " + 
                 component.amount.to_string() + " at " + 
                 std::to_string(i) + 
@@ -156,7 +154,7 @@ Transaction::Component::Component(ContentGroups& data)
   amount = cw.getOrFail(detailsIdx, COMPONENT_AMMOUNT).second->getAs<asset>();
   from = cw.getOrFail(detailsIdx, COMPONENT_FROM).second->getAs<std::string>();
   to = cw.getOrFail(detailsIdx, COMPONENT_TO).second->getAs<std::string>();
-  type = cw.getOrFail(detailsIdx, COMPONENT_TAG_TYPE).second->getAs<std::string>();
+  type = cw.getOrFail(detailsIdx, COMPONENT_TYPE).second->getAs<std::string>();
 
   if (type == CREDIT_TAG_TYPE) {
     amount.set_amount(amount.amount * -1);
@@ -183,11 +181,9 @@ Transaction::verifyBalanced(DocumentGraph& docgraph)
 
     //Check if the type of the component is credit or a debit
     //if credit we have to negate the amount
-
-    //Already done in constructor
-    // if (component.type == CREDIT_TAG_TYPE) {
-    //   asset.set_amount(asset.amount * -1);
-    // }
+    if (component.type == CREDIT_TAG_TYPE) {
+      asset.set_amount(asset.amount * -1);
+    }
     
     auto [assetIt, inserted] = assetsBySymb.insert({asset.symbol.raw(), asset});  
 
