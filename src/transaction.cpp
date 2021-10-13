@@ -29,13 +29,13 @@ Transaction::Transaction(ContentGroups& trxInfo)
   m_ledger = trx.getOrFail(hIdx, TRX_LEDGER).second->getAs<checksum256>();
   m_id = trx.getOrFail(hIdx, TRX_ID).second->getAs<int64_t>();
 
-  //Transaction might be empty
-  // EOS_CHECK(
-  //   trxInfo.size() >= 2,
-  //   "Transaction must contain at least 1 component"
-  // );
+  // Transaction might be empty
+  EOS_CHECK(
+    trxInfo.size() >= 2,
+    "Transaction must contain at least 1 component"
+  );
 
-  //Extract the components
+  // Extract the components
   for (size_t i = 0; i < trxInfo.size(); ++i) {
     if (i == hIdx) { continue; };
 
@@ -77,14 +77,9 @@ Transaction::Transaction(ContentGroups& trxInfo)
       );
     }
 
-    //If there is no ammount, then it should be implied
-    if (auto [idx, c] = trx.get(i, COMPONENT_AMMOUNT); c) {
+    if (auto [idx, c] = trx.getOrFail(i, COMPONENT_AMMOUNT); c) {
 
       component.amount = c->getAs<asset>();
-
-      if (component.type == CREDIT_TAG_TYPE) {
-        component.amount.set_amount(component.amount.amount * -1);
-      }
 
       EOS_CHECK(component.amount.is_valid(), "Not valid asset: " + 
                 component.amount.to_string() + " at " + 
@@ -154,11 +149,7 @@ Transaction::Component::Component(ContentGroups& data)
   amount = cw.getOrFail(detailsIdx, COMPONENT_AMMOUNT).second->getAs<asset>();
   from = cw.getOrFail(detailsIdx, COMPONENT_FROM).second->getAs<std::string>();
   to = cw.getOrFail(detailsIdx, COMPONENT_TO).second->getAs<std::string>();
-  type = cw.getOrFail(detailsIdx, COMPONENT_TYPE).second->getAs<std::string>();
-
-  if (type == CREDIT_TAG_TYPE) {
-    amount.set_amount(amount.amount * -1);
-  }
+  type = cw.getOrFail(detailsIdx, COMPONENT_TAG_TYPE).second->getAs<std::string>();
 }
 
 static int64_t 
@@ -167,99 +158,38 @@ getSign(int64_t v)
   return v ? static_cast<int64_t>(v > 0) - static_cast<int64_t>(v < 0) : 0;
 }
 
-std::vector<asset>
-Transaction::verifyBalanced(DocumentGraph& docgraph)
+void
+Transaction::checkBalanced()
 {
   TRACE_FUNCTION()
 
-  std::map<uint64_t, asset> assetsBySymb;
-  std::vector<asset> allAssets;
-  
-  //Use a copy of the component since we might need to invert the sign of the amount
-  for (Component component : m_components) {
-    auto& asset = component.amount;
+  std::map<std::string, asset> totals;
 
-    //Check if the type of the component is credit or a debit
-    //if credit we have to negate the amount
+  for (Component & component : m_components) {
+    asset quantity = component.amount;
+    std::string code = quantity.symbol.code().to_string();
+
     if (component.type == CREDIT_TAG_TYPE) {
-      asset.set_amount(asset.amount * -1);
+      quantity.set_amount(quantity.amount * -1);
     }
     
-    auto [assetIt, inserted] = assetsBySymb.insert({asset.symbol.raw(), asset});  
-
-    auto& accum = assetIt->second;
-
-    //It means the asset existed already
-    if (!inserted) { accum.set_amount(accum.amount + asset.amount); }
-  }
-  
-  EOS_CHECK(
-    assetsBySymb.size() <= 2,
-    "More than 2 currencies were detected"
-  );
-
-  std::vector<asset> nonZeroAssets;
-  //Only 1 asset is allowed to be implied
-  asset* impliedAsset = nullptr;
-
-  for (auto& [sym, asset] : assetsBySymb) {
-
-    //For implied assets, I'm relaying on the fact that it will be the first asset
-    //since it's code will be 0 (Invalid) and std::map sorts the data in acending order
-    //by default. See accounting.cpp:220
-    allAssets.push_back(asset);
-    
-    if (asset.symbol) {
-      if (asset.amount != 0) { nonZeroAssets.push_back(asset); }
-    }
-    else { //Implied asset
-      // EOS_CHECK(!impliedAsset, "Only one component is allowed to be implied: " + asset.to_string());
-      // impliedAsset = &asset;
-      EOS_CHECK(false, util::to_str("Asset is not valid: ", asset));
-    }
-  }
-
-  if (impliedAsset) {
-    //We assume the pending nonZeroAssets 
-    //are going to be implied from this asset
-    EOS_CHECK(!nonZeroAssets.empty(), "Implied asset without remaining compnents");
-
-    //There has to be only 1 nonZeroAsset
-    EOS_CHECK(nonZeroAssets.size() == 1, "There has to be at most 1 non implied asset");
-  }
-  else {
-    //Balanced
-    if (nonZeroAssets.empty()) { return allAssets; }
-
-    //Not valid, there should be at least 2
-    EOS_CHECK(nonZeroAssets.size() != 1, "Couldn't balance with remaining posting: " + 
-                                     nonZeroAssets.back().to_string());
-    
-    //If there are 2 components left they
-    //must cancel each other
-    if (nonZeroAssets.size() == 2) {
-      EOS_CHECK(getSign(nonZeroAssets.front().amount) != getSign(nonZeroAssets.back().amount),
-            "Remaining assets must cancel each other" + 
-            nonZeroAssets.front().to_string() + ", " + nonZeroAssets.back().to_string());
+    auto titr = totals.find(code);
+    if (titr == totals.end()) {
+      totals.insert(make_pair(code, quantity));
     }
     else {
-      EOS_CHECK(false, "Can't balance transaction with remaining components");
+      totals.at(code) = util::addAssetsAdjustingPrecision(titr->second, quantity);
     }
   }
 
-  return allAssets;
-}
+  int64_t zero = 0;
 
-bool 
-Transaction::shouldUpdate(Transaction& original) 
-{
-  if (original.m_name != m_name ||
-      original.m_memo != m_memo ||
-      original.m_date != m_date) {
-    return true;
+  for (auto itr = totals.begin(); itr != totals.end(); itr++) {
+    EOS_CHECK(
+      itr->second.amount == zero,
+      util::to_str("Transaction is unbalanced. Asset ", itr->first, " sums up to ", itr->second)
+    )
   }
-
-  return false;
 }
 
 }

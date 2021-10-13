@@ -12,6 +12,7 @@
 
 #include <constants.hpp>
 #include "eosio_utils.hpp"
+#include "math_utils.hpp"
 
 namespace hypha {
 
@@ -168,15 +169,6 @@ CONTRACT accounting : public contract {
   createtrx(name creator, ContentGroups& trx_info);
 
   /**
-   * @brief Creates a transaction with an empty component linked to an event
-   * 
-   * @param creator 
-   * @param trx_info 
-   */
-  ACTION
-  createtrxwe(name creator, ContentGroups& trx_info);
-
-  /**
    * @brief Updates an unapproved transaction by adding, deleting or modifying components
    * 
    * @param trx_info 
@@ -229,6 +221,15 @@ CONTRACT accounting : public contract {
   ACTION
   remtrustacnt(name account);
 
+  /**
+  * Adds a new allowed currency.
+  */
+  ACTION
+  addcurrency(symbol & currency_symbol);
+
+  ACTION
+  remcurrency(symbol & currency_symbol);
+
   ACTION
   deletetrx(name deleter, checksum256 trx_hash);
 
@@ -277,10 +278,10 @@ CONTRACT accounting : public contract {
   getSystemGroup(std::string nodeName, std::string type);
 
   bool
-  isCurrencySupported(symbol currency);
+  isAllowedCurrency(const symbol & currency_symbol, const std::vector<uint64_t> & allowed_currencies);
 
-  const std::vector<symbol_code>&
-  getSupportedCurrencies();
+  const std::vector<uint64_t>&
+  getAllowedCurrencies();
 
   void
   requireTrusted(name account);
@@ -308,11 +309,11 @@ CONTRACT accounting : public contract {
   getAccountPath(std::string account, checksum256 parent, const checksum256& ledger);
 
   //Adds the given amount to an specific account balances
-  void 
-  addAssetToAccount(checksum256 account, asset amount);
+  // void 
+  // addAssetToAccount(checksum256 account, asset amount);
 
-  void
-  recalculateGlobalBalances(checksum256 account, checksum256 ledger);
+  // void
+  // recalculateGlobalBalances(checksum256 account, checksum256 ledger);
 
   /**
    * @brief Adds a list of balances to a given account balances
@@ -321,9 +322,9 @@ CONTRACT accounting : public contract {
    * @param balances 
    * @param accCW 
    */
-  void
-  addToBalance(Document& balancesDoc, 
-               const std::vector<Balance>& balances);
+  // void
+  // addToBalance(Document& balancesDoc, 
+  //              const std::vector<Balance>& balances);
 
   Document
   getAccountBalances(checksum256 account);
@@ -346,9 +347,9 @@ CONTRACT accounting : public contract {
   std::map<std::string, asset>
   getAccountLocalBalances(checksum256 account);
 
-  void 
-  setGlobalBalances(Document& balancesDoc,
-                    std::map<std::string, asset>& balances);
+  // void 
+  // setGlobalBalances(Document& balancesDoc,
+  //                   std::map<std::string, asset>& balances);
 
   ContentGroup
   getTrxComponent(checksum256 account, 
@@ -361,6 +362,14 @@ CONTRACT accounting : public contract {
 
   ContentGroup
   getBalancesSystemGroup(int64_t id);
+
+  void
+  changeAcctBalanceRecursively(
+    const checksum256 & account, 
+    const checksum256 & ledger, 
+    const asset & quantity,
+    const bool onlyGlobal
+  );
 
   /**
   * @brief Creates a parent --> child & parent <-- child

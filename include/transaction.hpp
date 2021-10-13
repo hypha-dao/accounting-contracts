@@ -52,8 +52,8 @@ class Transaction
     std::optional<checksum256> hash;
   };
 
-  std::vector<asset>
-  verifyBalanced(DocumentGraph& docgraph);
+  void
+  checkBalanced();
 
   inline const vector<Component>&
   getComponents() const 

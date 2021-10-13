@@ -1,0 +1,327 @@
+[
+  {
+    "label":"content_group_label",
+    "value":["string","details"]
+  },
+  {
+    "label":"trx_date",
+    "value":["time_point","2021-08-11T00:00:00.000"]
+  },
+  {
+    "label":"trx_name",
+    "value":["string","Test ETH - 2.4 ETH"]
+  },
+  {
+    "label":"trx_ledger",
+    "value":["checksum256","a6a054a279a84ca3f29e8829037784fecb5362566994ed711ffc229ebc8ba636"]
+  },
+  {
+    "label":"trx_memo",
+    "value":["string",""]
+  },
+  {
+    "label":"id",
+    "value":["int64",105]
+  }
+],
+[
+  {
+    "label":"content_group_label",
+    "value":["string","component"]
+  },
+  {
+    "label":"memo",
+    "value":["string","Test ETH"]
+  },
+  {
+    "label":"account",
+    "value":["checksum256","e919983d0530365c0e3ad7f21fb9962b01c3b4f498b9f2d3d4cbc7036c3394db"]
+  },
+  {
+    "label":"amount",
+    "value":["asset","2.4 ETH"]
+  },
+  {
+    "label":"from",
+    "value":["string","s120222ef34012fjk39fk290"]
+  },
+  {
+    "label":"to",
+    "value":["string","s12x12tref34012fjk39fk2a0"]
+  },
+  {
+    "label":"type",
+    "value":["string","DEBIT"]
+  },
+  {
+    "label":"event",
+    "value":["checksum256","2dd761a808fce1900b341a61075750728c8b5a948b972ee1ece41b8cd4353a4b"]
+  }
+],
+[
+  {
+    "label":"content_group_label",
+    "value":["string","component"]
+  },
+  {
+    "label":"memo",
+    "value":["string","Testing"]
+  },
+  {
+    "label":"account",
+    "value":["checksum256","4d6c4687add11b39c9a66ef92b8e8fd03cf7ac43902ae1965eec05c57a6b1aa4"]
+  },
+  {
+    "label":"amount",
+    "value":["asset","2.4 ETH"]
+  },
+  {
+    "label":"from",
+    "value":["string","325235"]
+  },
+  {
+    "label":"to",
+    "value":["string","ewtew5234"]
+  },
+  {
+    "label":"type",
+    "value":["string","CREDIT"]
+  }
+],
+[
+  {
+    "label":"content_group_label",
+    "value":["string","component"]
+  },
+  {
+    "label":"memo",
+    "value":["string","Events locos"]
+  },
+  {
+    "label":"account",
+    "value":["checksum256","9cffd32497777ac6d095e555431af0bc2f9e65aa1ae78fdb425a54dd65261e1c"]
+  },
+  {
+    "label":"amount",
+    "value":["asset","500000.0 BTC"]
+  },
+  {
+    "label":"from",
+    "value":["string","6f804895-601b-48e2-9584-a45bd5481b84"]
+  },
+  {
+    "label":"to",
+    "value":["string","3783WKFTzSD2EcgPjm7AX3TUx4GpceqHce"]
+  },
+  {
+    "label":"type",
+    "value":["string","DEBIT"]
+  },
+  {
+    "label":"event",
+    "value":["checksum256","769368157287f47a97343ddaf3278933e55f4869a706be4d90006a123dff93e2"]
+  }
+]
+
+
+{
+	"content_groups": 
+	[
+		[
+			{
+				"label": "content_group_label",
+				"value": [
+						"string",
+						"details"
+				]
+			},
+			{
+				"label": "trx_date",
+				"value": [
+						"time_point",
+						"2020-12-17T21:45:11.500"
+				]
+			},
+			{
+				"label": "trx_ledger",
+				"value": [
+						"checksum256",
+						"4c807227a2c9d7ebe5b22050f6d3f0d4318fcb57904e19e18746ae0309024481"
+				]
+			},
+			{
+				"label": "trx_memo",
+				"value": [
+						"string",
+						"Test transaction"
+				]
+			},
+			{
+				"label": "trx_name",
+				"value": [
+					"string",
+					"transaction name"
+				]
+			}
+		],
+		
+[
+	{
+		"label": "content_group_label",
+		"value": [
+				"string",
+				"component"
+		]
+	},
+	{
+		"label": "memo",
+		"value": [
+			"string",
+			"Test component"
+		]
+	},
+	{
+		"label": "account",
+		"value": [
+			"checksum256",
+			"ddfa601e56ef59cff8551fd27e8002ee218283bb6d6ba371175e06b4c5be8379"
+		]
+	},
+	{
+		"label": "amount",
+		"value": [
+				"asset",
+				"100.000 USD"
+		]
+	},
+	{
+		"label": "from",
+		"value": [
+				"string",
+				"test_from"
+		]
+	},
+	{
+		"label": "to",
+		"value": [
+				"string",
+				"test_to"
+		]
+	},
+	{
+		"label": "type",
+		"value": [
+				"string",
+				"CREDIT"
+		]
+	}
+]
+,
+
+[
+	{
+		"label": "content_group_label",
+		"value": [
+				"string",
+				"component"
+		]
+	},
+	{
+		"label": "memo",
+		"value": [
+			"string",
+			"Test component"
+		]
+	},
+	{
+		"label": "account",
+		"value": [
+			"checksum256",
+			"3964881f7e1a6b095ca9188532e4ee6cb8128b279857beb6116f176dcb78cec9"
+		]
+	},
+	{
+		"label": "amount",
+		"value": [
+				"asset",
+				"80.000 USD"
+		]
+	},
+	{
+		"label": "from",
+		"value": [
+				"string",
+				"test_from"
+		]
+	},
+	{
+		"label": "to",
+		"value": [
+				"string",
+				"test_to"
+		]
+	},
+	{
+		"label": "type",
+		"value": [
+				"string",
+				"DEBIT"
+		]
+	}
+]
+,
+
+[
+	{
+		"label": "content_group_label",
+		"value": [
+				"string",
+				"component"
+		]
+	},
+	{
+		"label": "memo",
+		"value": [
+			"string",
+			"Test component"
+		]
+	},
+	{
+		"label": "account",
+		"value": [
+			"checksum256",
+			"66da7fe0d66cc0f2bf469bc7df6c44610956e3cf24db373e3b80ce47ba487b9f"
+		]
+	},
+	{
+		"label": "amount",
+		"value": [
+				"asset",
+				"20.000 USD"
+		]
+	},
+	{
+		"label": "from",
+		"value": [
+				"string",
+				"test_from"
+		]
+	},
+	{
+		"label": "to",
+		"value": [
+				"string",
+				"test_to"
+		]
+	},
+	{
+		"label": "type",
+		"value": [
+				"string",
+				"DEBIT"
+		]
+	}
+]
+
+	]
+}

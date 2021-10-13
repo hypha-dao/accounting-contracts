@@ -1,0 +1,34 @@
+
+
+
+./cleos -u https://testnet.telos.caleos.io push action  '["seeds", "100000.0000 SEEDS", "test"]' -p seeds@active
+
+
+
+./cleos -u https://testnet.telos.caleos.io set code gh.hypha \
+  ../../../Documents/hypha/accounting-contracts/build/accounting/accounting.wasm \
+  -p gh.hypha@active
+
+
+./cleos -u https://testnet.telos.caleos.io set abi gh.hypha \
+  ../../../Documents/hypha/accounting-contracts/build/accounting/accounting.abi \
+  -p gh.hypha@active
+
+
+
+
+
+
+
+===============================================================
+
+ADD ALLOWED CURRENCIES
+
+
+./cleos -u https://testnet.telos.caleos.io push action gh.hypha addcurrency '["8,BTC"]' -p gh.hypha@active
+
+./cleos -u https://testnet.telos.caleos.io push action gh.hypha addcurrency '["8,ETH"]' -p gh.hypha@active
+
+
+
+

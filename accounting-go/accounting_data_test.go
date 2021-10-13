@@ -30,7 +30,7 @@ const ledger_tester = `
 	]
 }`
 
-const transaction_test_1 = `
+const unbalanced_trx = `
 {
 	"content_groups": 
 	[
@@ -62,6 +62,13 @@ const transaction_test_1 = `
 									"string",
 									"Test transaction 1"
 							]
+					},
+					{
+							"label": "trx_name",
+							"value": [
+								"string",
+								"transaction name"
+							]
 					}
 		 ],
 		 [
@@ -92,6 +99,27 @@ const transaction_test_1 = `
 									"asset",
 									"1000.00 USD"
 							]
+					},
+					{
+						"label": "from",
+						"value": [
+								"string",
+								"test_from"
+						]
+					},
+					{
+						"label": "to",
+						"value": [
+								"string",
+								"test_to"
+						]
+					},
+					{
+						"label": "type",
+						"value": [
+								"string",
+								"DEBIT"
+						]
 					}
 		 ],
 		 [
@@ -120,13 +148,135 @@ const transaction_test_1 = `
 							"label": "amount",
 							"value": [
 									"asset",
-									"-1000.00 USD"
+									"1000.00 HUSD"
 							]
+					},
+					{
+						"label": "from",
+						"value": [
+								"string",
+								"test_from2"
+						]
+					},
+					{
+						"label": "to",
+						"value": [
+								"string",
+								"test_to2"
+						]
+					},
+					{
+						"label": "type",
+						"value": [
+								"string",
+								"CREDIT"
+						]
 					}
 		 ]
 	]
 }
 `
+
+const generic_trx = `
+{
+	"content_groups": 
+	[
+		[
+			{
+				"label": "content_group_label",
+				"value": [
+						"string",
+						"details"
+				]
+			},
+			{
+				"label": "trx_date",
+				"value": [
+						"time_point",
+						"2020-12-17T21:45:11.500"
+				]
+			},
+			{
+				"label": "trx_ledger",
+				"value": [
+						"checksum256",
+						"trx_ledger_value"
+				]
+			},
+			{
+				"label": "trx_memo",
+				"value": [
+						"string",
+						"Test transaction"
+				]
+			},
+			{
+				"label": "trx_name",
+				"value": [
+					"string",
+					"transaction name"
+				]
+			}
+		],
+		generic_trx_components
+	]
+}
+`
+
+const generic_trx_component = `
+[
+	{
+		"label": "content_group_label",
+		"value": [
+				"string",
+				"component"
+		]
+	},
+	{
+		"label": "memo",
+		"value": [
+			"string",
+			"Test component"
+		]
+	},
+	{
+		"label": "account",
+		"value": [
+			"checksum256",
+			"component_account"
+		]
+	},
+	{
+		"label": "amount",
+		"value": [
+				"asset",
+				"component_amount"
+		]
+	},
+	{
+		"label": "from",
+		"value": [
+				"string",
+				"test_from"
+		]
+	},
+	{
+		"label": "to",
+		"value": [
+				"string",
+				"test_to"
+		]
+	},
+	{
+		"label": "type",
+		"value": [
+				"string",
+				"component_type"
+		]
+	}
+]
+`
+
 
 const transaction_test_we = `
 {

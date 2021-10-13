@@ -38,6 +38,7 @@ type Environment struct {
 	HusdToken   eos.AccountName
 	HyphaToken  eos.AccountName
 	HvoiceToken eos.AccountName
+	AuthorizedAccount1 eos.AccountName
 
 	Whale Member
 	Root  docgraph.Document
@@ -95,7 +96,8 @@ func SetupEnvironment(t *testing.T) *Environment {
 		devHome = "."
 	}
 	devHome = devHome + ""
-	devHome = "/src"
+	// devHome = "src/"
+	devHome = "../.."
 
 	accountingHome = devHome + "/accounting-contracts"
 	accountingWasm = accountingHome + "/build/accounting/accounting.wasm"
@@ -121,6 +123,7 @@ func SetupEnvironment(t *testing.T) *Environment {
 	env.NumPeriods = 10
 
 	env.Accounting, _ = eostest.CreateAccountFromString(env.ctx, &env.api, "accounting", eostest.DefaultKey())
+	env.AuthorizedAccount1, _ = eostest.CreateAccountFromString(env.ctx, &env.api, "authacct1111", eostest.DefaultKey())
 
 	env.DAO, _ = eostest.CreateAccountFromString(env.ctx, &env.api, "dao.hypha", eostest.DefaultKey())
 
@@ -147,6 +150,9 @@ func SetupEnvironment(t *testing.T) *Environment {
 	assert.NilError(t, err)
 
 	_, err = accounting.AddTrustedAccount(env.ctx, &env.api, env.Accounting, env.Accounting)
+	assert.NilError(t, err)
+
+	_, err = accounting.AddTrustedAccount(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1)
 	assert.NilError(t, err)
 	
 	return &env

@@ -3,9 +3,12 @@ package accounting
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"crypto/sha256"
 	"encoding/hex"
+
+	"github.com/golang-collections/collections/stack"
 
 	eostest "github.com/digital-scarcity/eos-go-test"
 	eos "github.com/eoscanada/eos-go"
@@ -56,10 +59,25 @@ type trustAccount struct {
 	Account eos.AccountName `json: "account`
 }
 
+type addCurrency struct {
+	Currency eos.Symbol `json: currency`
+}
+
 type cursor struct {
 	Key        uint64 `json:"key"`
 	Source     string `json:"source"`
 	LastCursor string `json:"last_cursor"`
+}
+
+type stackNode struct {
+	Node	docgraph.Document `json:"document"`
+	Level int `json:"level"`
+}
+
+type TrxComponent struct {
+	AccountHash string `json:"account"`
+	Amount eos.Asset `json:"amount"`
+	Type string `json:"type"`
 }
 
 func AddLedger(ctx context.Context, api *eos.API, contract, creator eos.AccountName, ledger []docgraph.ContentGroup) (string, error) {
@@ -140,7 +158,7 @@ func BalanceTrx(ctx context.Context, api *eos.API, contract, issuer eos.AccountN
 		Account: contract,
 		Name:    eos.ActN("balancetrx"),
 		Authorization: []eos.PermissionLevel{
-			{Actor: contract, Permission: eos.PN("active")},
+			{Actor: issuer, Permission: eos.PN("active")},
 		},
 		ActionData: eos.NewActionData(balanceTrx{
 			Issuer:						issuer,
@@ -234,6 +252,29 @@ func RemTrustedAccount(ctx context.Context, api *eos.API, contract eos.AccountNa
 	return eostest.ExecTrx(ctx, api, actions)
 }
 
+func AddCurrency(ctx context.Context, api *eos.API, contract eos.AccountName, currency string) (string, error) {
+
+	symbol, err := eos.StringToSymbol(currency)
+
+	if err != nil {
+		return "error", fmt.Errorf("error adding currency: %s", err)
+	}
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name: eos.ActN("addcurrency"),
+		Authorization: []eos.PermissionLevel {
+			{ Actor: contract, Permission: eos.PN("active") },
+		},
+		ActionData: eos.NewActionData(addCurrency {
+			Currency: symbol,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+
+}
+
 //Check with permissions
 func Event(ctx context.Context, api *eos.API, contract, issuer eos.AccountName, trx []docgraph.ContentGroup) (string, error) {
 
@@ -313,4 +354,81 @@ func GetCursorFromSource(ctx context.Context, api *eos.API, contract eos.Account
 	}
 
 	return cursors[0].LastCursor, nil
+}
+
+
+func PrintLedger (ctx context.Context, api *eos.API, contract eos.AccountName, ledger docgraph.Document) (string, error) {
+
+	balancesToString := ""
+	dfs := stack.New()
+	accountDocuments, err := docgraph.GetDocumentsWithEdge(ctx, api, contract, ledger, "account")
+	
+	if err != nil {
+		return "", fmt.Errorf("could not retrieve account's children")
+	}
+
+	for _, childDocument := range accountDocuments {
+		dfs.Push(stackNode{childDocument, 0})
+	}
+
+	for dfs.Len() > 0 {
+		node := dfs.Pop().(stackNode)
+		accountDocument := node.Node
+
+		padding := strings.Repeat("\t", node.Level)
+
+		detailsGroup, err := accountDocument.GetContentGroup("details")
+
+		if err != nil {
+			return "", fmt.Errorf("could not retrieve details %v", err)
+		}
+
+		accountName, err := detailsGroup.GetContent("account_name")
+
+		if err != nil {
+			return "", fmt.Errorf("could not retrieve account name %v", err)
+		}
+
+		balancesDocuments, err := docgraph.GetDocumentsWithEdge(ctx, api, contract, accountDocument, "balances")
+
+		if err != nil {
+			return "", fmt.Errorf("could not retrieve balance document %v", err)
+		}
+
+		balancesToString += "\n" + padding + "Account:" + accountName.String()
+		//fmt.Println(padding, "Account name: ", accountName)
+
+		for _, balanceDocument := range balancesDocuments {
+			balancesContentGroup, err := balanceDocument.GetContentGroup("balances")
+
+			if err != nil {
+				return "", fmt.Errorf("could not retrieve balance group")
+			}
+
+			balancesToString += ", Balances: "
+
+			for _, content := range *balancesContentGroup {
+				if content.Label != "content_group_label" {
+					balancesToString += "[" + content.Label + ":" + content.Value.String() + "]"
+					// fmt.Printf("%s%s : %s\n", padding, content.Label, content.Value.String())
+				}
+			}
+
+			balancesToString += " endl"
+		}
+
+		accountDocuments, err := docgraph.GetDocumentsWithEdge(ctx, api, contract, accountDocument, "account")
+
+		if err != nil {
+			return "", fmt.Errorf("could not retrieve account's children")
+		}
+
+		for _, childDocument := range accountDocuments {
+			dfs.Push(stackNode{childDocument, node.Level + 1})
+		}
+
+	}
+
+	return balancesToString, nil
+
 }
