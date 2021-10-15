@@ -159,15 +159,6 @@ CONTRACT accounting : public contract {
   ACTION 
   createacc(name creator, ContentGroups& account_info);
 
-  /**
-   * @brief Creates an unapproved transaction
-   * 
-   * @param creator User that created
-   * @param trx_info 
-   */
-  // ACTION
-  // createtrx(name creator, ContentGroups& trx_info);
-
   ACTION
   upserttrx(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve);
 
@@ -177,51 +168,15 @@ CONTRACT accounting : public contract {
   ACTION
   balancetrx(const name & issuer, checksum256 & trx_hash);
 
-  void
-  createTransaction(const name & issuer, int64_t trxId, ContentGroups & trx_info, bool approve);
-
-  void
-  deleteTransaction(const checksum256 & trx_hash);
-
-  bool
-  isApproved(const checksum256 & trx_hash);
-
-  /**
-   * @brief Updates an unapproved transaction by adding, deleting or modifying components
-   * 
-   * @param trx_info 
-   * @return ACTION 
-   */
-  // ACTION
-  // updatetrx(name updater, checksum256 trx_hash, ContentGroups& trx_info);
-
-  /**
-   * Stores the components and transaction information in the graph
-   */
-
   ACTION
   newevent(name issuer, ContentGroups trx_info);
 
-  /**
-  * Adds a setting in the settings document or replaces it if the setting already
-  * exits
-  */
   ACTION
   setsetting(string setting, Content::FlexValue value);
 
-  /**
-  * Deletes a setting from the settings document
-  */ 
   ACTION
   remsetting(string setting);
 
-  /**
-   * @brief Updates account information
-   * 
-   * @param account_hash
-   * @param account_info  
-   * @return ACTION 
-   */
   ACTION
   updateacc(name updater, checksum256 account_hash, ContentGroups account_info);
   
@@ -298,6 +253,15 @@ CONTRACT accounting : public contract {
 
   void
   requireTrusted(name account);
+
+  void
+  createTransaction(const name & issuer, int64_t trxId, ContentGroups & trx_info, bool approve);
+
+  void
+  deleteTransaction(const checksum256 & trx_hash);
+
+  bool
+  isApproved(const checksum256 & trx_hash);
   
   /**
   * Retreives the hash of the Events Bucket document
@@ -321,48 +285,8 @@ CONTRACT accounting : public contract {
   std::string
   getAccountPath(std::string account, checksum256 parent, const checksum256& ledger);
 
-  //Adds the given amount to an specific account balances
-  // void 
-  // addAssetToAccount(checksum256 account, asset amount);
-
-  // void
-  // recalculateGlobalBalances(checksum256 account, checksum256 ledger);
-
-  /**
-   * @brief Adds a list of balances to a given account balances
-   * 
-   * @param account 
-   * @param balances 
-   * @param accCW 
-   */
-  // void
-  // addToBalance(Document& balancesDoc, 
-  //              const std::vector<Balance>& balances);
-
   Document
   getAccountBalances(checksum256 account);
-
-  /**
-   * @brief Get's the global balances of an account
-   * 
-   * @param account 
-   * @return std::vector<asset> [Balances]
-   */
-  // std::map<std::string, asset>
-  // getAccountGlobalBalances(checksum256 account);
-
-  /**
-   * @brief Get's the local balances of an account
-   * 
-   * @param account 
-   * @return std::vector<asset> [Balances]
-   */
-  // std::map<std::string, asset>
-  // getAccountLocalBalances(checksum256 account);
-
-  // void 
-  // setGlobalBalances(Document& balancesDoc,
-  //                   std::map<std::string, asset>& balances);
 
   ContentGroup
   getTrxComponent(checksum256 account, 
