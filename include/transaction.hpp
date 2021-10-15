@@ -25,16 +25,8 @@ class Transaction
 {
  public:
 
-  /**
-  * @brief Builds a transaction object from a given ContentGroups
-  */
   Transaction(ContentGroups& trxInfo);
 
-  /**
-   * @brief Construct a new Transaction object from an existing Document
-   * 
-   * @param trxDoc 
-   */
   Transaction(Document& trxDoc, DocumentGraph& docgraph);
 
   class Component
@@ -61,17 +53,10 @@ class Transaction
     return m_components;
   }
 
-  inline ContentGroup
+  inline ContentGroup *
   getDetails() const
   {
-    return {
-      Content{CONTENT_GROUP_LABEL, DETAILS},
-      Content{TRX_NAME, m_name},
-      Content{TRX_MEMO, m_memo},
-      Content{TRX_DATE, m_date},
-      Content{TRX_LEDGER, m_ledger},
-      Content{TRX_ID, m_id}
-    };
+    return m_details;
   }
 
   inline checksum256
@@ -96,6 +81,7 @@ class Transaction
   checksum256 m_ledger;
   int64_t m_id;
   vector<Component> m_components;
+  ContentGroup * m_details;
   //name m_signature;
 };
 

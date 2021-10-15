@@ -19,8 +19,9 @@ Transaction::Transaction(ContentGroups& trxInfo)
   ContentWrapper trx(trxInfo);
 
   auto [hIdx, detailsGroup] = trx.getGroup(DETAILS);
-
   EOS_CHECK(detailsGroup, "Missing 'details' group in transaction document");
+
+  m_details = detailsGroup;
 
   //Check all the details fields are present
   m_memo = trx.getOrFail(hIdx, TRX_MEMO).second->getAs<string>();
@@ -29,24 +30,15 @@ Transaction::Transaction(ContentGroups& trxInfo)
   m_ledger = trx.getOrFail(hIdx, TRX_LEDGER).second->getAs<checksum256>();
   m_id = trx.getOrFail(hIdx, TRX_ID).second->getAs<int64_t>();
 
-  // Transaction might be empty
-  EOS_CHECK(
-    trxInfo.size() >= 2,
-    "Transaction must contain at least 1 component"
-  );
-
   // Extract the components
   for (size_t i = 0; i < trxInfo.size(); ++i) {
     if (i == hIdx) { continue; };
 
     auto groupLabel = trx.getGroupLabel(i);
 
-    EOS_CHECK(!groupLabel.empty(), "Unexpected content group withouh label: " + 
-                                std::to_string(i));
+    EOS_CHECK(!groupLabel.empty(), "Unexpected content group withouh label: " + std::to_string(i));
 
-    EOS_CHECK(groupLabel == "component", "Wrong content_group_label value [" + 
-                                      string(groupLabel) + 
-                                      "] expecting 'component'");
+    if (groupLabel != "component") { continue; }
 
     Component component;
     
@@ -93,6 +85,11 @@ Transaction::Transaction(ContentGroups& trxInfo)
     
     m_components.emplace_back(std::move(component));
   }
+
+  EOS_CHECK(
+    m_components.size() > 0,
+    "Transaction must contain at least 1 component"
+  )
 }
 
 Transaction::Transaction(Document& trxDoc, DocumentGraph& docgraph) 
@@ -102,8 +99,9 @@ Transaction::Transaction(Document& trxDoc, DocumentGraph& docgraph)
   ContentWrapper trx = trxDoc.getContentWrapper();
 
   auto [hIdx, detailsGroup] = trx.getGroup(DETAILS);
-
   EOS_CHECK(detailsGroup, "Missing 'details' group in transaction document");
+
+  m_details = detailsGroup;
 
   //Check all the details fields are present
   m_memo = trx.getOrFail(hIdx, TRX_MEMO).second->getAs<string>();

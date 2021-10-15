@@ -217,7 +217,7 @@ const generic_trx = `
 					"transaction name"
 				]
 			}
-		],
+		]
 		generic_trx_components
 	]
 }

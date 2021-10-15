@@ -165,8 +165,26 @@ CONTRACT accounting : public contract {
    * @param creator User that created
    * @param trx_info 
    */
+  // ACTION
+  // createtrx(name creator, ContentGroups& trx_info);
+
   ACTION
-  createtrx(name creator, ContentGroups& trx_info);
+  upserttrx(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve);
+
+  ACTION
+  deletetrx(const name & deleter, const checksum256 & trx_hash);
+
+  ACTION
+  balancetrx(const name & issuer, checksum256 & trx_hash);
+
+  void
+  createTransaction(const name & issuer, int64_t trxId, ContentGroups & trx_info, bool approve);
+
+  void
+  deleteTransaction(const checksum256 & trx_hash);
+
+  bool
+  isApproved(const checksum256 & trx_hash);
 
   /**
    * @brief Updates an unapproved transaction by adding, deleting or modifying components
@@ -174,14 +192,12 @@ CONTRACT accounting : public contract {
    * @param trx_info 
    * @return ACTION 
    */
-  ACTION
-  updatetrx(name updater, checksum256 trx_hash, ContentGroups& trx_info);
+  // ACTION
+  // updatetrx(name updater, checksum256 trx_hash, ContentGroups& trx_info);
 
   /**
    * Stores the components and transaction information in the graph
    */
-  ACTION
-  balancetrx(name issuer, checksum256 trx_hash);
 
   ACTION
   newevent(name issuer, ContentGroups trx_info);
@@ -229,9 +245,6 @@ CONTRACT accounting : public contract {
 
   ACTION
   remcurrency(symbol & currency_symbol);
-
-  ACTION
-  deletetrx(name deleter, checksum256 trx_hash);
 
   /**
    * @brief Binds an event with a component document
@@ -335,8 +348,8 @@ CONTRACT accounting : public contract {
    * @param account 
    * @return std::vector<asset> [Balances]
    */
-  std::map<std::string, asset>
-  getAccountGlobalBalances(checksum256 account);
+  // std::map<std::string, asset>
+  // getAccountGlobalBalances(checksum256 account);
 
   /**
    * @brief Get's the local balances of an account
@@ -344,8 +357,8 @@ CONTRACT accounting : public contract {
    * @param account 
    * @return std::vector<asset> [Balances]
    */
-  std::map<std::string, asset>
-  getAccountLocalBalances(checksum256 account);
+  // std::map<std::string, asset>
+  // getAccountLocalBalances(checksum256 account);
 
   // void 
   // setGlobalBalances(Document& balancesDoc,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"strconv"
 
 	"crypto/sha256"
 	"encoding/hex"
@@ -80,6 +81,35 @@ type TrxComponent struct {
 	Type string `json:"type"`
 }
 
+type TrxTestInfo struct {
+	Ledger docgraph.Document
+	Accounts map[string]docgraph.Document
+	Currencies map[string]eos.Symbol
+}
+
+type upsertTrx struct {
+	Issuer eos.AccountName `json:issuer`
+	TrxHash eos.Checksum256 `json:trx_hash`
+	TrxInfo []docgraph.ContentGroup `json:trx_info`
+	Approve bool `json:approve`
+}
+
+type ComponentNodeInfo struct {
+	ComponentNode docgraph.Document
+	Edges map[string][]docgraph.Edge
+}
+
+type TrxNodeInfo struct {
+	TrxNode docgraph.Document
+	Edges map[string][]docgraph.Edge
+	Components []ComponentNodeInfo
+}
+
+type deleteTrx struct {
+	Deleter eos.AccountName `json:deleter`
+	TrxHash eos.Checksum256 `json:trx_hash`
+}
+
 func AddLedger(ctx context.Context, api *eos.API, contract, creator eos.AccountName, ledger []docgraph.ContentGroup) (string, error) {
 
 	actions := []*eos.Action{{
@@ -133,6 +163,44 @@ func CreateTrxWe(ctx context.Context, api *eos.API, contract, creator eos.Accoun
 	}}
 
 	return eostest.ExecTrx(ctx, api, actions)
+}
+
+func Upserttrx(ctx context.Context, api *eos.API, contract, issuer eos.AccountName, trxHash eos.Checksum256, trxInfo []docgraph.ContentGroup, approve bool) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("upserttrx"),
+		Authorization: []eos.PermissionLevel{
+			{ Actor: issuer, Permission: eos.PN("active") },
+		},
+		ActionData: eos.NewActionData(upsertTrx{
+			Issuer: issuer,
+			TrxHash: trxHash,
+			TrxInfo: trxInfo,
+			Approve: approve,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+
+}
+
+func Deletetrx(ctx context.Context, api *eos.API, contract, deleter eos.AccountName, trxHash eos.Checksum256) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("deletetrx"),
+		Authorization: []eos.PermissionLevel{
+			{ Actor: deleter, Permission: eos.PN("active") },
+		},
+		ActionData: eos.NewActionData(deleteTrx{
+			Deleter: deleter,
+			TrxHash: trxHash,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+
 }
 
 func CreateTrx(ctx context.Context, api *eos.API, contract, creator eos.AccountName, trx []docgraph.ContentGroup) (string, error) {
@@ -430,5 +498,92 @@ func PrintLedger (ctx context.Context, api *eos.API, contract eos.AccountName, l
 	}
 
 	return balancesToString, nil
+
+}
+
+func PrintDocument (document docgraph.Document) (string, error) {
+
+	docToString := ""
+
+	docToString += "ID:" + strconv.FormatUint(document.ID, 10)
+	docToString += "\nHash:" + document.Hash.String()
+	docToString += "\nCreator:" + string(document.Creator)
+
+	docToString += "\nContent Groups:"
+
+	for i, contentGroup := range document.ContentGroups {
+		docToString += "\n" + strconv.Itoa(i) + ":"
+
+		for _, contentItem := range contentGroup {
+			docToString += "\n" + contentItem.Label + " : " + contentItem.Value.String()
+		}
+	}
+
+	return docToString, nil
+
+}
+
+func GetAllEdgesForDocument (ctx context.Context, api *eos.API, contract eos.AccountName, document docgraph.Document) (map[string][]docgraph.Edge, error) {
+	
+	edges := make(map[string][]docgraph.Edge)
+
+	fromEdges, err := docgraph.GetEdgesFromDocument(ctx, api, contract, document)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve from edges: %v", err)
+	}
+
+	fmt.Println("edges length:", len(fromEdges))
+
+	edges["from"] = fromEdges
+
+	toEdges, err := docgraph.GetEdgesToDocument(ctx, api, contract, document)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve to edges: %v", err)
+	}
+
+	edges["to"] = toEdges
+
+	return edges, nil
+
+}
+
+func GetTrxNodeInfo (ctx context.Context, api *eos.API, contract eos.AccountName, transaction docgraph.Document) (TrxNodeInfo, error) {
+
+	GetAllEdgesForDocument(ctx, api, contract, transaction)
+
+	trxEdges, err := GetAllEdgesForDocument(ctx, api, contract, transaction)
+
+	if err != nil {
+		return TrxNodeInfo{}, err
+	}
+
+	fromEdges := trxEdges["from"]
+	var components []ComponentNodeInfo
+
+	for _, edge := range fromEdges {
+
+		if edge.EdgeName == "component" {
+			comptDoc, err := docgraph.LoadDocument(ctx, api, contract, edge.ToNode.String())
+			comptEdges, err := GetAllEdgesForDocument(ctx, api, contract, comptDoc)
+
+			if err != nil {
+				return TrxNodeInfo{}, err
+			}
+
+			components = append(components, ComponentNodeInfo {
+				ComponentNode: comptDoc,
+				Edges: comptEdges,
+			})
+		}
+
+	}
+
+	return TrxNodeInfo {
+		TrxNode: transaction,
+		Edges: trxEdges,
+		Components: components,
+	}, nil
 
 }

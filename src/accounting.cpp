@@ -145,35 +145,275 @@ accounting::createacc(name creator, ContentGroups& account_info)
   parent(creator, parentHash, account.getHash());
 }
 
+// ACTION
+// accounting::createtrx(name creator, ContentGroups& trx_info)
+// {
+//   TRACE_FUNCTION()
+
+//   require_auth(creator);
+//   requireTrusted(creator);
+
+//   Settings& settings = Settings::instance();
+//   auto nextID = settings.getOrDefault("next_trx_id", int64_t(0));
+//   settings.addOrReplace("next_trx_id", nextID + 1);
+
+//   ContentWrapper cw(trx_info);
+
+//   auto detailsGroup = cw.getGroupOrFail(DETAILS);
+
+//   ContentWrapper::insertOrReplace(*detailsGroup, Content{TRX_ID, nextID});
+
+//   Transaction trx(trx_info);
+  
+//   Document trxDoc(get_self(), creator, { trx.getDetails(), 
+//                                          getSystemGroup(TRX_LABEL, TRX_TYPE) });
+
+//   auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
+
+//   parent(creator, ledgerToTrxBucket.getToNode(), trxDoc.getHash(), UNAPPROVED_TRX, UNAPPROVED_TRX);
+
+//   createComponents(trxDoc.getHash(), trx, creator);
+// }
+
 ACTION
-accounting::createtrx(name creator, ContentGroups& trx_info)
+accounting::upserttrx(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve)
 {
   TRACE_FUNCTION()
 
-  require_auth(creator);
-  requireTrusted(creator);
+  require_auth(issuer);
+  requireTrusted(issuer);
 
-  Settings& settings = Settings::instance();
-  auto nextID = settings.getOrDefault("next_trx_id", int64_t(0));
-  settings.addOrReplace("next_trx_id", nextID + 1);
-
-  ContentWrapper cw(trx_info);
-
-  auto detailsGroup = cw.getGroupOrFail(DETAILS);
-
-  ContentWrapper::insertOrReplace(*detailsGroup, Content{TRX_ID, nextID});
-
-  Transaction trx(trx_info);
+  checksum256 nullHash;
   
-  Document trxDoc(get_self(), creator, { trx.getDetails(), 
-                                         getSystemGroup(TRX_LABEL, TRX_TYPE) });
+  if (trx_hash == nullHash) {
+    createTransaction(issuer, uint64_t(0), trx_info, approve);
+  } else {
+    EOS_CHECK(
+      !isApproved(trx_hash),
+      util::to_str("Cannot modify an approved transaction: ", trx_hash)
+    )
+
+    Document trxDoc(get_self(), trx_hash);
+    ContentWrapper cw = trxDoc.getContentWrapper();
+
+    int64_t trxId = cw.getOrFail(DETAILS, TRX_ID)->getAs<int64_t>();
+
+    deleteTransaction(trx_hash);
+    createTransaction(issuer, trxId, trx_info, approve);
+  }
+}
+
+ACTION
+accounting::deletetrx(const name & deleter, const checksum256 & trx_hash) 
+{
+  TRACE_FUNCTION()
+
+  require_auth(deleter);
+  requireTrusted(deleter);
+
+  deleteTransaction(trx_hash);
+}
+
+ACTION
+accounting::balancetrx(const name & issuer, checksum256 & trx_hash)
+{
+  TRACE_FUNCTION()
+
+  require_auth(issuer);
+  requireTrusted(issuer);
+
+  auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
+
+  EOS_CHECK(
+    !unapprovedEdge.empty(),
+    util::to_str("Cannot balance approved transaction: ", trx_hash)
+  )
+
+  auto trxComponents = m_documentGraph.getEdgesFrom(trx_hash, name(COMPONENT_TYPE));
+  for (Edge& componentEdge : trxComponents) {
+    Document cmpDoc(get_self(), componentEdge.getToNode());
+    //Verify component has linked account
+    Edge::get(get_self(), cmpDoc.getHash(), name(ACCOUNT_EDGE));
+  }
+
+  Document trxDoc(get_self(), trx_hash);
+
+  auto trxCW = trxDoc.getContentWrapper();
+
+  auto detailsGroup = trxCW.getGroupOrFail(DETAILS);
+
+  ContentWrapper::insertOrReplace(*detailsGroup, Content{TRX_APPROVER, issuer});
+
+  trxDoc = m_documentGraph.updateDocument(issuer, trxDoc.getHash(), trxDoc.getContentGroups());
+
+  trx_hash = trxDoc.getHash();
+
+  Transaction trx(trxDoc, m_documentGraph);
+  
+  trx.checkBalanced();
+
+  for (auto & component : trx.getComponents()) {
+    changeAcctBalanceRecursively(
+      component.account, 
+      trx.getLedger(), 
+      ((component.type == CREDIT_TAG_TYPE) ? -1 : 1) * component.amount, 
+      false
+    );
+  }
 
   auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
+  auto bucketHash = ledgerToTrxBucket.getToNode();
+  
+  Edge::get(get_self(), bucketHash, trx_hash, name(UNAPPROVED_TRX)).erase();
+  Edge::get(get_self(), trx_hash, bucketHash, name(UNAPPROVED_TRX)).erase();
 
-  parent(creator, ledgerToTrxBucket.getToNode(), trxDoc.getHash(), UNAPPROVED_TRX, UNAPPROVED_TRX);
-
-  createComponents(trxDoc.getHash(), trx, creator);
+  parent(issuer, bucketHash, trx_hash, APPROVED_TRX, APPROVED_TRX);
 }
+
+void
+accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups & trx_info, bool approve)
+{
+  TRACE_FUNCTION()
+
+  if (trxId == 0) {
+    Settings& settings = Settings::instance();
+    trxId = settings.getOrDefault("next_trx_id", int64_t(1));
+    settings.addOrReplace("next_trx_id", trxId + 1);
+  }
+
+  ContentWrapper cw(trx_info);
+  ContentGroup & detailsGroup = *cw.getGroupOrFail(DETAILS);
+
+  ContentWrapper::insertOrReplace(detailsGroup, Content{ TRX_ID, trxId });
+
+  Transaction trx(trx_info);
+
+  if (approve) {
+    trx.checkBalanced();
+
+    ContentWrapper::insertOrReplace(detailsGroup, Content{ TRX_APPROVER, issuer });
+
+    for (auto & component : trx.getComponents()) {
+      changeAcctBalanceRecursively(
+        component.account, 
+        trx.getLedger(), 
+        ((component.type == CREDIT_TAG_TYPE) ? -1 : 1) * component.amount, 
+        false
+      );
+    }
+  }
+
+  Document trxDoc(get_self(), issuer, { detailsGroup, getSystemGroup(TRX_LABEL, TRX_TYPE) });
+
+  const std::vector<uint64_t> & allowed_currencies = getAllowedCurrencies();
+
+  for (auto & compnt : trx.getComponents()) {
+
+    EOS_CHECK(
+      compnt.amount.amount >= 0,
+      "Component amount must be a positive quantity."
+    )
+
+    EOS_CHECK(
+      isAllowedCurrency(compnt.amount.symbol, allowed_currencies),
+      util::to_str("Currency ", compnt.amount.symbol.code(), " is not allowed.")
+    )
+    
+    Document compntDoc(get_self(), issuer, {
+      getTrxComponent(compnt.account, compnt.memo, compnt.amount, compnt.from, compnt.to, compnt.type, DETAILS),
+      getSystemGroup(COMPONENT_LABEL, COMPONENT_TYPE) 
+    });
+
+    parent(issuer, trxDoc.getHash(), compntDoc.getHash(), COMPONENT_TYPE, TRX_TYPE);
+
+    if (compnt.event) {
+      bindevent(issuer, *compnt.event, compntDoc.getHash());
+    }
+
+    Edge compntToAcc(get_self(), issuer, compntDoc.getHash(), compnt.account, name(ACCOUNT_EDGE));
+  }
+
+  auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
+  auto bucketHash = ledgerToTrxBucket.getToNode();
+
+  std::string edgeName = approve ? APPROVED_TRX : UNAPPROVED_TRX;
+
+  parent(issuer, bucketHash, trxDoc.getHash(), edgeName, edgeName);
+}
+
+void
+accounting::deleteTransaction(const checksum256 & trx_hash)
+{
+  TRACE_FUNCTION()
+
+  EOS_CHECK(
+    !isApproved(trx_hash),
+    util::to_str("Cannot delete an approved transaction: ", trx_hash)
+  )
+
+  Document trxDoc(get_self(), trx_hash);
+
+  Transaction trx(trxDoc, m_documentGraph);
+
+  for (auto & component : trx.getComponents()) {
+    m_documentGraph.eraseDocument(*component.hash, true);
+  }
+
+  m_documentGraph.eraseDocument(trx_hash, true);
+}
+
+bool
+accounting::isApproved(const checksum256 & trx_hash)
+{
+  auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
+  return unapprovedEdge.empty();
+}
+
+// void 
+// accounting::createComponents(checksum256 trx_hash, Transaction& trx, name creator) 
+// {
+//   TRACE_FUNCTION()
+
+//   LOG_MESSAGE(util::to_str("Components:", trx.getComponents().size()));
+
+//   const std::vector<uint64_t> & allowed_currencies = getAllowedCurrencies();
+
+//   for (auto& compnt : trx.getComponents()) {
+
+//     EOS_CHECK(
+//       compnt.amount.amount >= 0,
+//       "Component amount must be a positive quantity."
+//     )
+
+//     EOS_CHECK(
+//       isAllowedCurrency(compnt.amount.symbol, allowed_currencies),
+//       util::to_str("Currency ", compnt.amount.symbol.code(), " is not allowed.")
+//     )
+    
+//     Document compntDoc(get_self(), creator, { getTrxComponent(compnt.account, 
+//                                                              compnt.memo, 
+//                                                              compnt.amount,
+//                                                              compnt.from,
+//                                                              compnt.to,
+//                                                              compnt.type,
+//                                                              DETAILS),
+//                                               getSystemGroup(COMPONENT_LABEL, COMPONENT_TYPE) });
+
+//     /** Connections
+//      *  component --> 'transaction' --> transaction
+//      *  component <-- 'component'   <-- transaction 
+//      *  component --> 'account' --> account
+//      */
+//     parent(creator, trx_hash, compntDoc.getHash(), COMPONENT_TYPE, TRX_TYPE);
+
+//     if (compnt.event) {
+//       bindevent(creator, *compnt.event, compntDoc.getHash());
+//     }
+
+//     Edge compntToAcc(get_self(), creator, compntDoc.getHash(), compnt.account, name(ACCOUNT_EDGE)); // why do we need this?
+//   }
+// }
+
 
 ACTION
 accounting::updateacc(name updater, checksum256 account_hash, ContentGroups account_info) 
@@ -259,128 +499,72 @@ accounting::updateacc(name updater, checksum256 account_hash, ContentGroups acco
 
 }
 
-ACTION
-accounting::updatetrx(name updater, checksum256 trx_hash, ContentGroups& trx_info)
-{
-  TRACE_FUNCTION()
+// ACTION
+// accounting::updatetrx(name updater, checksum256 trx_hash, ContentGroups& trx_info)
+// {
+//   TRACE_FUNCTION()
 
-  require_auth(updater);
-  requireTrusted(updater);
+//   require_auth(updater);
+//   requireTrusted(updater);
 
-  auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
+//   auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
 
-  EOS_CHECK(
-    !unapprovedEdge.empty(),
-    util::to_str("Cannot update approved transaction: ", trx_hash)
-  )
+//   EOS_CHECK(
+//     !unapprovedEdge.empty(),
+//     util::to_str("Cannot modify approved transaction: ", trx_hash)
+//   )
   
-  Transaction transaction(trx_info);
+//   Transaction transaction(trx_info);
 
-  Document trxDoc(get_self(), trx_hash);
+//   Document trxDoc(get_self(), trx_hash);
     
-  Transaction originalTrx(trxDoc, m_documentGraph);
+//   Transaction originalTrx(trxDoc, m_documentGraph);
 
-  //Verify that trx_hash document 'id' field matches the trx_info 'id'
-  EOS_CHECK(
-    transaction.getID() == originalTrx.getID(),
-    util::to_str("The 'id' in trx_info [",
-                  transaction.getID(),
-                  "] doesn't match the 'id' within document loaded with trx_hash [",
-                  trx_hash, ",", originalTrx.getID(), "]")
-  )
+//   EOS_CHECK(
+//     transaction.getID() == originalTrx.getID(),
+//     util::to_str("The 'id' in trx_info [",
+//                   transaction.getID(),
+//                   "] doesn't match the 'id' within document loaded with trx_hash [",
+//                   trx_hash, ",", originalTrx.getID(), "]")
+//   )
 
-  //Verify that trx_hash document 'ledger' field matches the trx_info 'ledger'
-  EOS_CHECK(
-    transaction.getLedger() == originalTrx.getLedger(),
-    util::to_str("The 'ledger' in trx_info [",
-                  transaction.getLedger(),
-                  "] doesn't match the 'ledger' within document loaded with trx_hash [",
-                  trx_hash, ",", originalTrx.getLedger(), "]")
-  )
+//   //Verify that trx_hash document 'ledger' field matches the trx_info 'ledger'
+//   EOS_CHECK(
+//     transaction.getLedger() == originalTrx.getLedger(),
+//     util::to_str("The 'ledger' in trx_info [",
+//                   transaction.getLedger(),
+//                   "] doesn't match the 'ledger' within document loaded with trx_hash [",
+//                   trx_hash, ",", originalTrx.getLedger(), "]")
+//   )
 
-  //Check if any transaction field changed
-  if (originalTrx.shouldUpdate(transaction)) {
-    trx_hash = m_documentGraph.updateDocument(updater, trx_hash, {
-      transaction.getDetails(),
-      getSystemGroup(TRX_LABEL, TRX_TYPE)
-    }).getHash();
-  }
+//   //Check if any transaction field changed
+//   if (originalTrx.shouldUpdate(transaction)) {
+//     trx_hash = m_documentGraph.updateDocument(updater, trx_hash, {
+//       transaction.getDetails(),
+//       getSystemGroup(TRX_LABEL, TRX_TYPE)
+//     }).getHash();
+//   }
 
-  //Delete Components
-  for (auto& component : originalTrx.getComponents()) {
-    //Verify if component contains a valid asset 
-    //(might be empty if created with 'createtrxwe' action)
-    if (component.amount.is_valid()) {
-      addAssetToAccount(component.account, -component.amount);
-      recalculateGlobalBalances(component.account, transaction.getLedger());
-    }
+//   //Delete Components
+//   for (auto& component : originalTrx.getComponents()) {
+//     //Verify if component contains a valid asset 
+//     //(might be empty if created with 'createtrxwe' action)
+//     if (component.amount.is_valid()) {
+//       // addAssetToAccount(component.account, -component.amount);
+//       // recalculateGlobalBalances(component.account, transaction.getLedger());
+//     }
 
-    EOS_CHECK(
-      component.hash.has_value(),
-      util::to_str("Component doesn't have hash field, trx:", trx_hash)
-    );
+//     EOS_CHECK(
+//       component.hash.has_value(),
+//       util::to_str("Component doesn't have hash field, trx:", trx_hash)
+//     );
 
-    m_documentGraph.eraseDocument(*component.hash, true);
-  }
+//     m_documentGraph.eraseDocument(*component.hash, true);
+//   }
   
-  createComponents(trx_hash, transaction, updater);
-}
+//   createComponents(trx_hash, transaction, updater);
+// }
 
-ACTION
-accounting::balancetrx(name issuer, checksum256 trx_hash)
-{
-  TRACE_FUNCTION()
-
-  require_auth(issuer);
-  requireTrusted(issuer);
-
-  auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
-
-  EOS_CHECK(
-    !unapprovedEdge.empty(),
-    util::to_str("Cannot balance approved transaction: ", trx_hash)
-  )
-
-  auto trxComponents = m_documentGraph.getEdgesFrom(trx_hash, name(COMPONENT_TYPE));
-  for (Edge& componentEdge : trxComponents) {
-    Document cmpDoc(get_self(), componentEdge.getToNode());
-    //Verify component has linked account
-    Edge::get(get_self(), cmpDoc.getHash(), name(ACCOUNT_EDGE));
-  }
-
-  Document trxDoc(get_self(), trx_hash);
-
-  auto trxCW = trxDoc.getContentWrapper();
-
-  auto detailsGroup = trxCW.getGroupOrFail(DETAILS);
-
-  ContentWrapper::insertOrReplace(*detailsGroup, Content{TRX_APPROVER, issuer});
-
-  trxDoc = m_documentGraph.updateDocument(issuer, trxDoc.getHash(), trxDoc.getContentGroups());
-
-  trx_hash = trxDoc.getHash();
-
-  Transaction trx(trxDoc, m_documentGraph);
-  
-  trx.checkBalanced();
-
-  for (auto & component : trx.getComponents()) {
-    changeAcctBalanceRecursively(
-      component.account, 
-      trx.getLedger(), 
-      ((component.type == CREDIT_TAG_TYPE) ? -1 : 1) * component.amount, 
-      false
-    );
-  }
-
-  auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
-  auto bucketHash = ledgerToTrxBucket.getToNode();
-  
-  Edge::get(get_self(), bucketHash, trx_hash, name(UNAPPROVED_TRX)).erase();
-  Edge::get(get_self(), trx_hash, bucketHash, name(UNAPPROVED_TRX)).erase();
-
-  parent(issuer, bucketHash, trx_hash, APPROVED_TRX, APPROVED_TRX);
-}
 
 ACTION
 accounting::newevent(name issuer, ContentGroups trx_info) 
@@ -471,50 +655,6 @@ accounting::unbindevent(name updater, checksum256 event_hash, checksum256 compon
 
   Edge::get(get_self(), event_hash, component_hash, name(COMPONENT_TYPE)).erase();
   Edge::get(get_self(), component_hash, event_hash, name(EVENT_EDGE)).erase();
-}
-
-ACTION
-accounting::deletetrx(name deleter, checksum256 trx_hash) 
-{
-  TRACE_FUNCTION()
-
-  require_auth(deleter);
-  requireTrusted(deleter);
-
-  auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
-
-  EOS_CHECK(
-    !unapprovedEdge.empty(),
-    util::to_str("Cannot delete approved transaction: ", trx_hash)
-  )
-  Document trxDoc(get_self(), trx_hash);
-
-  Transaction trx(trxDoc, m_documentGraph);
-
-  //Delete Components
-  for (auto& component : trx.getComponents()) {
-    //Verify if component contains a valid asset 
-    //(might be empty if created with 'createtrxwe' action)
-    if (component.amount.is_valid()) {
-      addAssetToAccount(component.account, -component.amount);
-      recalculateGlobalBalances(component.account, trx.getLedger());
-    }
-
-    EOS_CHECK(
-      component.hash.has_value(),
-      util::to_str("Component is missing hash field, trx:", trx_hash)
-    );
-
-    //We could skip this since erasing the component document will erase the 
-    //edges to the event
-    if (component.event.has_value()) {
-      unbindevent(deleter, *component.event, *component.hash);
-    }
-
-    m_documentGraph.eraseDocument(*component.hash, true);
-  }
-
-  m_documentGraph.eraseDocument(trx_hash, true);
 }
 
 ACTION
@@ -746,51 +886,6 @@ accounting::getEventBucket()
   }  
 }
 
-void 
-accounting::createComponents(checksum256 trx_hash, Transaction& trx, name creator) 
-{
-  TRACE_FUNCTION()
-
-  LOG_MESSAGE(util::to_str("Components:", trx.getComponents().size()));
-
-  const std::vector<uint64_t> & allowed_currencies = getAllowedCurrencies();
-
-  for (auto& compnt : trx.getComponents()) {
-
-    EOS_CHECK(
-      compnt.amount.amount >= 0,
-      "Component amount must be a positive quantity."
-    )
-
-    EOS_CHECK(
-      isAllowedCurrency(compnt.amount.symbol, allowed_currencies),
-      util::to_str("Currency ", compnt.amount.symbol.code(), " is not allowed.")
-    )
-    
-    Document compntDoc(get_self(), creator, { getTrxComponent(compnt.account, 
-                                                             compnt.memo, 
-                                                             compnt.amount,
-                                                             compnt.from,
-                                                             compnt.to,
-                                                             compnt.type,
-                                                             DETAILS),
-                                              getSystemGroup(COMPONENT_LABEL, COMPONENT_TYPE) });
-
-    /** Connections
-     *  component --> 'transaction' --> transaction
-     *  component <-- 'component'   <-- transaction 
-     *  component --> 'account' --> account
-     */
-    parent(creator, trx_hash, compntDoc.getHash(), COMPONENT_TYPE, TRX_TYPE);
-
-    if (compnt.event) {
-      bindevent(creator, *compnt.event, compntDoc.getHash());
-    }
-
-    Edge compntToAcc(get_self(), creator, compntDoc.getHash(), compnt.account, name(ACCOUNT_EDGE)); // why do we need this?
-  }
-}
-
 std::string 
 accounting::getAccountPath(std::string account, checksum256 parent, const checksum256& ledger) 
 {
@@ -915,47 +1010,47 @@ accounting::getAccountBalances(checksum256 account)
                   Edge::get(get_self(), account, name(BALANCES)).getToNode());
 }
 
-std::map<std::string, asset>
-accounting::getAccountGlobalBalances(checksum256 account)
-{
-  auto balances = getAccountBalances(account);
-  auto balancesCW = balances.getContentWrapper();
+// std::map<std::string, asset>
+// accounting::getAccountGlobalBalances(checksum256 account)
+// {
+//   auto balances = getAccountBalances(account);
+//   auto balancesCW = balances.getContentWrapper();
 
-  std::map<std::string, asset> globalBals;
+//   std::map<std::string, asset> globalBals;
 
-  auto balancesGroup = balancesCW.getGroupOrFail(BALANCES);
+//   auto balancesGroup = balancesCW.getGroupOrFail(BALANCES);
 
-  for (auto& content : *balancesGroup) {
-    if (content.label != CONTENT_GROUP_LABEL && 
-        util::containsPrefix(content.label, "global_")) {
-      auto symbol = util::getSubstrAfterLastOf(content.label, '_');
-      globalBals[symbol.data()] =  content.getAs<asset>();
-    }
-  }
+//   for (auto& content : *balancesGroup) {
+//     if (content.label != CONTENT_GROUP_LABEL && 
+//         util::containsPrefix(content.label, "global_")) {
+//       auto symbol = util::getSubstrAfterLastOf(content.label, '_');
+//       globalBals[symbol.data()] =  content.getAs<asset>();
+//     }
+//   }
 
-  return globalBals;
-}
+//   return globalBals;
+// }
 
-std::map<std::string, asset>
-accounting::getAccountLocalBalances(checksum256 account)
-{
-  auto balances = getAccountBalances(account);
-  auto balancesCW = balances.getContentWrapper();
+// std::map<std::string, asset>
+// accounting::getAccountLocalBalances(checksum256 account)
+// {
+//   auto balances = getAccountBalances(account);
+//   auto balancesCW = balances.getContentWrapper();
 
-  std::map<std::string, asset> localBals;
+//   std::map<std::string, asset> localBals;
 
-  auto balancesGroup = balancesCW.getGroupOrFail(BALANCES);
+//   auto balancesGroup = balancesCW.getGroupOrFail(BALANCES);
 
-  for (auto& content : *balancesGroup) {
-    if (content.label != CONTENT_GROUP_LABEL && 
-        util::containsPrefix(content.label, "account_")) {
-      auto symbol = util::getSubstrAfterLastOf(content.label, '_');
-      localBals[symbol.data()] = content.getAs<asset>();
-    }
-  }
+//   for (auto& content : *balancesGroup) {
+//     if (content.label != CONTENT_GROUP_LABEL && 
+//         util::containsPrefix(content.label, "account_")) {
+//       auto symbol = util::getSubstrAfterLastOf(content.label, '_');
+//       localBals[symbol.data()] = content.getAs<asset>();
+//     }
+//   }
 
-  return localBals;
-}
+//   return localBals;
+// }
 
 void
 accounting::changeAcctBalanceRecursively(
