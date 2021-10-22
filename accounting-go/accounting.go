@@ -328,6 +328,8 @@ func AddCurrency(ctx context.Context, api *eos.API, contract eos.AccountName, cu
 		return "error", fmt.Errorf("error adding currency: %s", err)
 	}
 
+	fmt.Println("Adding currency: ", currency)
+
 	actions := []*eos.Action{{
 		Account: contract,
 		Name: eos.ActN("addcurrency"),
@@ -445,16 +447,24 @@ func PrintLedger (ctx context.Context, api *eos.API, contract eos.AccountName, l
 
 		padding := strings.Repeat("\t", node.Level)
 
-		detailsGroup, err := accountDocument.GetContentGroup("details")
+		accountDocVariables, err := docgraph.GetDocumentsWithEdge(ctx, api, contract, accountDocument, "accountv")
+
+		if err != nil {
+			return "", fmt.Errorf("could not retrieve account name %v", err)
+		}
+
+		accountDocVariable := accountDocVariables[0];
+		vDetailsGroup, err := accountDocVariable.GetContentGroup("details")
 
 		if err != nil {
 			return "", fmt.Errorf("could not retrieve details %v", err)
 		}
 
-		accountName, err := detailsGroup.GetContent("account_name")
+		accountName, err := vDetailsGroup.GetContent("account_name")
+		isLeaf, err := vDetailsGroup.GetContent("is_leaf")
 
 		if err != nil {
-			return "", fmt.Errorf("could not retrieve account name %v", err)
+			return "", fmt.Errorf("could not retrieve details from account variable: %v", err)
 		}
 
 		balancesDocuments, err := docgraph.GetDocumentsWithEdge(ctx, api, contract, accountDocument, "balances")
@@ -482,7 +492,7 @@ func PrintLedger (ctx context.Context, api *eos.API, contract eos.AccountName, l
 				}
 			}
 
-			balancesToString += " endl"
+			balancesToString += " endl" + ", isLeaf: " + isLeaf.String()
 		}
 
 		accountDocuments, err := docgraph.GetDocumentsWithEdge(ctx, api, contract, accountDocument, "account")

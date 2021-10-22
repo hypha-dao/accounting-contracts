@@ -157,7 +157,7 @@ CONTRACT accounting : public contract {
   * Adds an account to the graph
   */
   ACTION 
-  createacc(name creator, ContentGroups& account_info);
+  createacc(const name & creator, ContentGroups& account_info);
 
   ACTION
   upserttrx(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve);
@@ -165,8 +165,8 @@ CONTRACT accounting : public contract {
   ACTION
   deletetrx(const name & deleter, const checksum256 & trx_hash);
 
-  ACTION
-  balancetrx(const name & issuer, checksum256 & trx_hash);
+  // ACTION
+  // balancetrx(const name & issuer, checksum256 & trx_hash);
 
   ACTION
   newevent(name issuer, ContentGroups trx_info);
@@ -196,10 +196,10 @@ CONTRACT accounting : public contract {
   * Adds a new allowed currency.
   */
   ACTION
-  addcurrency(symbol & currency_symbol);
+  addcurrency(const name & updater, symbol & currency_symbol);
 
   ACTION
-  remcurrency(symbol & currency_symbol);
+  remcurrency(const name & updater, symbol & currency_symbol);
 
   /**
    * @brief Binds an event with a component document

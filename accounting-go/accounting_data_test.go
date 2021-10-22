@@ -30,153 +30,6 @@ const ledger_tester = `
 	]
 }`
 
-const unbalanced_trx = `
-{
-	"content_groups": 
-	[
-			[
-					{
-							"label": "content_group_label",
-							"value": [
-									"string",
-									"details"
-							]
-					},
-					{
-							"label": "trx_date",
-							"value": [
-									"time_point",
-									"2020-12-17T21:45:11.500"
-							]
-					},
-					{
-							"label": "trx_ledger",
-							"value": [
-									"string",
-									"abc"
-							]
-					},
-					{
-							"label": "trx_memo",
-							"value": [
-									"string",
-									"Test transaction 1"
-							]
-					},
-					{
-							"label": "trx_name",
-							"value": [
-								"string",
-								"transaction name"
-							]
-					}
-		 ],
-		 [
-					{
-						"label": "content_group_label",
-						"value": [
-								"string",
-								"component"
-						]
-					},
-					{
-						"label": "memo",
-						"value": [
-							"string",
-							"Test component"
-						]
-					},
-					{
-						"label": "account_a",
-						"value": [
-							"string",
-							"abc"
-						]
-					},
-					{
-							"label": "amount",
-							"value": [
-									"asset",
-									"1000.00 USD"
-							]
-					},
-					{
-						"label": "from",
-						"value": [
-								"string",
-								"test_from"
-						]
-					},
-					{
-						"label": "to",
-						"value": [
-								"string",
-								"test_to"
-						]
-					},
-					{
-						"label": "type",
-						"value": [
-								"string",
-								"DEBIT"
-						]
-					}
-		 ],
-		 [
-					{
-						"label": "content_group_label",
-						"value": [
-								"string",
-								"component"
-						]
-					},
-					{
-						"label": "memo",
-						"value": [
-							"string",
-							"Test component"
-						]
-					},
-					{
-						"label": "account_b",
-						"value": [
-							"string",
-							"abc"
-						]
-					},
-					{
-							"label": "amount",
-							"value": [
-									"asset",
-									"1000.00 HUSD"
-							]
-					},
-					{
-						"label": "from",
-						"value": [
-								"string",
-								"test_from2"
-						]
-					},
-					{
-						"label": "to",
-						"value": [
-								"string",
-								"test_to2"
-						]
-					},
-					{
-						"label": "type",
-						"value": [
-								"string",
-								"CREDIT"
-						]
-					}
-		 ]
-	]
-}
-`
-
 const generic_trx = `
 {
 	"content_groups": 
@@ -277,256 +130,6 @@ const generic_trx_component = `
 ]
 `
 
-
-const transaction_test_we = `
-{
-	"content_groups": 
-	[
-			[
-					{
-							"label": "content_group_label",
-							"value": [
-									"string",
-									"details"
-							]
-					},
-					{
-							"label": "trx_date",
-							"value": [
-									"time_point",
-									"2021-11-17T21:45:11.500"
-							]
-					},
-					{
-							"label": "trx_ledger",
-							"value": [
-									"string",
-									"abc"
-							]
-					},
-					{
-							"label": "trx_memo",
-							"value": [
-									"string",
-									"Test transaction We"
-							]
-					},
-					{
-						"label": "event",
-						"value": [
-								"string",
-								"abc"
-						]
-					}
-				]
-		 ]
-}
-`
-
-const transaction_test_we_update = `
-{
-	"content_groups": 
-	[
-			[
-					{
-							"label": "content_group_label",
-							"value": [
-									"string",
-									"details"
-							]
-					},
-					{
-							"label": "trx_date",
-							"value": [
-									"time_point",
-									"2021-11-17T21:45:11.500"
-							]
-					},
-					{
-							"label": "trx_ledger",
-							"value": [
-									"string",
-									"abc"
-							]
-					},
-					{
-							"label": "trx_memo",
-							"value": [
-									"string",
-									"Test transaction We"
-							]
-					},
-					{
-							"label": "id",
-							"value": [
-									"int64",
-									0
-							]
-					}
-		 ],
-		 [
-					{
-						"label": "content_group_label",
-						"value": [
-								"string",
-								"component"
-						]
-					},
-					{
-						"label": "memo",
-						"value": [
-							"string",
-							"Test component"
-						]
-					},
-					{
-						"label": "account_a",
-						"value": [
-							"string",
-							"abc"
-						]
-					},
-					{
-							"label": "amount",
-							"value": [
-									"asset",
-									"1000.00 USD"
-							]
-					},
-					{
-							"label": "event",
-							"value": [
-								"string",
-								"abc"
-							]
-					}
-		 ],
-		 [
-					{
-						"label": "content_group_label",
-						"value": [
-								"string",
-								"component"
-						]
-					},
-					{
-						"label": "memo",
-						"value": [
-							"string",
-							"Test component"
-						]
-					},
-					{
-						"label": "account_b",
-						"value": [
-							"string",
-							"abc"
-						]
-					},
-					{
-							"label": "amount",
-							"value": [
-									"asset",
-									"-1000.00 USD"
-							]
-					}
-			]
-		]
-}
-`
-
-const transaction_test_implied = `
-{
-	"content_groups": 
-	[
-			[
-					{
-							"label": "content_group_label",
-							"value": [
-									"string",
-									"details"
-							]
-					},
-					{
-							"label": "trx_date",
-							"value": [
-									"time_point",
-									"2020-12-17T21:45:11.500"
-							]
-					},
-					{
-							"label": "trx_ledger",
-							"value": [
-									"string",
-									"abc"
-							]
-					},
-					{
-							"label": "trx_memo",
-							"value": [
-									"string",
-									"Test Implied Transaction"
-							]
-					}
-		 ],
-		 
-		 [
-					{
-						"label": "content_group_label",
-						"value": [
-								"string",
-								"component"
-						]
-					},
-					{
-						"label": "memo",
-						"value": [
-							"string",
-							"Restaurant"
-						]
-					},
-					{
-						"label": "account_b",
-						"value": [
-							"string",
-							"abc"
-						]
-					},
-					{
-							"label": "amount",
-							"value": [
-									"asset",
-									"2.4 BTC"
-							]
-					}
-		 ],
-		 [
-					{
-						"label": "content_group_label",
-						"value": [
-								"string",
-								"component"
-						]
-					},
-					{
-						"label": "memo",
-						"value": [
-							"string",
-							"Week salary"
-						]
-					},
-					{
-						"label": "account_c",
-						"value": [
-							"string",
-							"abc"
-						]
-					}
-		 ]
-	]
-}
-`
-
 const account_mkting = `
 {
 	"content_groups": 
@@ -571,6 +174,50 @@ const account_mkting = `
 	]
 }`
 
+const account_development = `
+{
+	"content_groups": 
+	[
+			[
+					{
+							"label": "content_group_label",
+							"value": [
+									"string",
+									"details"
+							]
+					},
+					{
+							"label": "account_name",
+							"value": [
+									"string",
+									"Development"
+							]
+					},
+					{
+							"label": "account_type",
+							"value": [
+									"int64",
+									1
+							]
+					},
+					{
+						"label": "account_tag_type",
+						"value": [
+								"string",
+								"DEBIT"
+						]
+					},
+					{
+						"label": "account_code",
+						"value": [
+								"string",
+								"000122"
+						]
+					}
+		 ]
+	]
+}`
+
 const account_income = `
 {
 	"content_groups": 
@@ -609,6 +256,51 @@ const account_income = `
 						"value": [
 								"string",
 								"000113"
+						]
+					}
+		 ]
+	]
+}
+`
+
+const account_sales = `
+{
+	"content_groups": 
+	[
+			[
+					{
+							"label": "content_group_label",
+							"value": [
+									"string",
+									"details"
+							]
+					},
+					{
+							"label": "account_name",
+							"value": [
+									"string",
+									"Sales"
+							]
+					},
+					{
+							"label": "account_type",
+							"value": [
+									"int64",
+									1
+							]
+					},
+					{
+						"label": "account_tag_type",
+						"value": [
+								"string",
+								"CREDIT"
+						]
+					},
+					{
+						"label": "account_code",
+						"value": [
+								"string",
+								"000123"
 						]
 					}
 		 ]

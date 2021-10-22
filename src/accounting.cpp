@@ -62,7 +62,7 @@ accounting::addledger(name creator, ContentGroups& ledger_info)
 }
 
 ACTION
-accounting::createacc(name creator, ContentGroups& account_info)
+accounting::createacc(const name & creator, ContentGroups & account_info)
 { 
   TRACE_FUNCTION()
 
@@ -75,56 +75,83 @@ accounting::createacc(name creator, ContentGroups& account_info)
 
   EOS_CHECK(details, "Details group was expected but not found in account info");
   
-  auto parentHash = contentWrap.getOrFail(dIdx, PARENT_ACCOUNT).second->getAs<checksum256>();
-
-  auto accountType = contentWrap.getOrFail(dIdx, ACCOUNT_TYPE).second->getAs<int64_t>();
+  checksum256 parentHash = contentWrap.getOrFail(dIdx, PARENT_ACCOUNT).second->getAs<checksum256>();
+  int64_t accountType = contentWrap.getOrFail(dIdx, ACCOUNT_TYPE).second->getAs<int64_t>(); // why do we need this?
+  std::string accountTagType = contentWrap.getOrFail(dIdx, ACCOUNT_TAG_TYPE).second->getAs<std::string>();
+  std::string accountCode = contentWrap.getOrFail(dIdx, ACCOUNT_CODE).second->getAs<std::string>();
+  std::string accountName = contentWrap.getOrFail(dIdx, ACCOUNT_NAME).second->getAs<std::string>();
+  checksum256 ledger = contentWrap.getOrFail(dIdx, LEDGER_ACCOUNT).second->getAs<checksum256>();
   
-  std::string accountTagType = "";
-
-  if (auto [tagIdx, accTagType] = contentWrap.get(dIdx, ACCOUNT_TAG_TYPE); 
-      accTagType) {
-    accountTagType = accTagType->getAs<std::string>();
-  }
-
-  auto accountCode = contentWrap.getOrFail(dIdx, ACCOUNT_CODE).second->getAs<string>();
-
-  auto accountName = contentWrap.getOrFail(dIdx, ACCOUNT_NAME).second->getAs<string>();
-
-  auto ledger = contentWrap.getOrFail(dIdx, LEDGER_ACCOUNT).second->getAs<checksum256>();
-  
-  auto accountEdges = m_documentGraph.getEdgesFrom(parentHash, name("account"));
-
   TableWrapper<document_table> docs(get_self(), get_self().value);
 
-  EOS_CHECK(docs.contains_by<"idhash"_n>(parentHash), 
-        "The parent document doesn't exists: " + readableHash(parentHash));
-  
-  //Check if there isn't already an account with the same name
-  for (const auto& edge : accountEdges) {
-    
-    auto account = docs.get_by<"idhash"_n>(edge.to_node);
+  EOS_CHECK(
+    docs.contains_by<"idhash"_n>(parentHash), 
+    "The parent document doesn't exists: " + readableHash(parentHash)
+  )
 
-    ContentWrapper cg(account.getContentGroups());
+  std::vector<hypha::Edge> accountEdges = m_documentGraph.getEdgesFrom(parentHash, name(ACCOUNT_EDGE));
 
-    auto name = cg.getOrFail(DETAILS, ACCOUNT_NAME)->getAs<string>();
+  if (accountEdges.size() > 0) {
+    for (const auto & edge : accountEdges) {
+      auto siblingDoc = docs.get_by<"idhash"_n>(Edge::get(get_self(), edge.to_node, name(ACCOUNT_VARIABLE)).getToNode());
+      ContentWrapper cg(siblingDoc.getContentGroups());
 
-    EOS_CHECK(util::toLowerCase(std::move(name)) != util::toLowerCase(accountName), 
-          "There is already an account with name: " + accountName);
+      std::string siblingName = cg.getOrFail(DETAILS, ACCOUNT_NAME)->getAs<std::string>();
+      EOS_CHECK(
+        util::toLowerCase(std::move(siblingName)) != util::toLowerCase(accountName), 
+        "There is already an account with name: " + accountName
+      )
+
+      // checking the sibling is not enough, we need to check the whole tree
+      // std::string siblingCode = cg.getOrFail(DETAILS, ACCOUNT_CODE)->getAs<std::string>();
+      // EOS_CHECK(
+      //   siblingCode != accountCode,
+      //   "There is already an account with code: " + accountCode
+      // )
+    }
+  } else if (parentHash != ledger) {
+    TableWrapper<edge_table> edges(get_self(), get_self().value);
+
+    EOS_CHECK(
+      !edges.contains_by<"bytoname"_n>(hypha::concatHash(parentHash, name(COMPONENT_ACCOUNT_EDGE))),
+      util::to_str("Parent account already has associated components. Parent hash: ", parentHash)
+    )
+
+    Edge accountVariableEdge = Edge::get(get_self(), parentHash, name(ACCOUNT_VARIABLE));
+
+    Document parentVDoc(get_self(), accountVariableEdge.getToNode());
+    ContentWrapper pvContentWrapper = parentVDoc.getContentWrapper();
+
+    auto [pvDIdx, pvDetailsGroup] = pvContentWrapper.getGroup(DETAILS);
+
+    pvContentWrapper.insertOrReplace(pvDIdx, Content{ IS_LEAF, std::string("false") });
+    m_documentGraph.updateDocument(get_self(), parentVDoc.getHash(), parentVDoc.getContentGroups());
   }
 
-  //Create the account
   Document account(get_self(), creator, { 
-    ContentGroup{
-      Content{CONTENT_GROUP_LABEL, DETAILS},
-      Content{ACCOUNT_NAME, accountName},
-      Content{ACCOUNT_TYPE, accountType},
-      Content{ACCOUNT_TAG_TYPE, accountTagType},
-      Content{ACCOUNT_CODE, accountCode},
-      // Content{PARENT_ACCOUNT, parentHash},
-      Content{ACCOUNT_PATH, getAccountPath(accountName, parentHash, ledger)}
+    ContentGroup {
+      Content{ CONTENT_GROUP_LABEL, DETAILS },
+      Content{ ACCOUNT_TYPE, accountType },
+      Content{ ACCOUNT_TAG_TYPE, accountTagType },
+      Content{ ACCOUNT_CODE, accountCode },
+      Content{ ACCOUNT_PATH, getAccountPath(accountName, parentHash, ledger) }
     },
     getSystemGroup(accountName.c_str(), "account"),
   });
+
+  auto accountVSystemGroup = getSystemGroup(accountName.c_str(), "account_v");
+  accountVSystemGroup.push_back(Content{ "account_fixed", account.getHash() });
+
+  Document account_variable(get_self(), creator, {
+    ContentGroup {
+      Content{ CONTENT_GROUP_LABEL, DETAILS },
+      Content{ ACCOUNT_NAME, accountName },
+      Content{ IS_LEAF, std::string("true") },
+    },
+    accountVSystemGroup,
+  });
+
+  Edge(get_self(), creator, account.getHash(), account_variable.getHash(), name(ACCOUNT_VARIABLE));
 
   auto& settings = Settings::instance();
   int64_t nextBalanceID = settings.getOrDefault("next_balances_id", int64_t{0});
@@ -132,7 +159,6 @@ accounting::createacc(name creator, ContentGroups& account_info)
 
   auto balanceSystemGroup = getBalancesSystemGroup(nextBalanceID);
 
-  //Create balances document
   Document balances(get_self(), creator, {
     ContentGroup{
       Content{CONTENT_GROUP_LABEL, BALANCES},
@@ -144,6 +170,16 @@ accounting::createacc(name creator, ContentGroups& account_info)
   
   parent(creator, parentHash, account.getHash());
 }
+
+ACTION
+accounting::updateacc(name updater, checksum256 account_hash, ContentGroups account_info) 
+{
+  // require_auth(updater);
+  // requireTrusted(updater);
+
+}
+
+
 
 ACTION
 accounting::upserttrx(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve)
@@ -184,61 +220,61 @@ accounting::deletetrx(const name & deleter, const checksum256 & trx_hash)
   deleteTransaction(trx_hash);
 }
 
-ACTION
-accounting::balancetrx(const name & issuer, checksum256 & trx_hash)
-{
-  TRACE_FUNCTION()
+// ACTION
+// accounting::balancetrx(const name & issuer, checksum256 & trx_hash)
+// {
+//   TRACE_FUNCTION()
 
-  require_auth(issuer);
-  requireTrusted(issuer);
+//   require_auth(issuer);
+//   requireTrusted(issuer);
 
-  auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
+//   auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
 
-  EOS_CHECK(
-    !unapprovedEdge.empty(),
-    util::to_str("Cannot balance approved transaction: ", trx_hash)
-  )
+//   EOS_CHECK(
+//     !unapprovedEdge.empty(),
+//     util::to_str("Cannot balance approved transaction: ", trx_hash)
+//   )
 
-  auto trxComponents = m_documentGraph.getEdgesFrom(trx_hash, name(COMPONENT_TYPE));
-  for (Edge& componentEdge : trxComponents) {
-    Document cmpDoc(get_self(), componentEdge.getToNode());
-    //Verify component has linked account
-    Edge::get(get_self(), cmpDoc.getHash(), name(ACCOUNT_EDGE));
-  }
+//   auto trxComponents = m_documentGraph.getEdgesFrom(trx_hash, name(COMPONENT_TYPE));
+//   for (Edge& componentEdge : trxComponents) {
+//     Document cmpDoc(get_self(), componentEdge.getToNode());
+//     //Verify component has linked account
+//     Edge::get(get_self(), cmpDoc.getHash(), name(ACCOUNT_EDGE));
+//   }
 
-  Document trxDoc(get_self(), trx_hash);
+//   Document trxDoc(get_self(), trx_hash);
 
-  auto trxCW = trxDoc.getContentWrapper();
+//   auto trxCW = trxDoc.getContentWrapper();
 
-  auto detailsGroup = trxCW.getGroupOrFail(DETAILS);
+//   auto detailsGroup = trxCW.getGroupOrFail(DETAILS);
 
-  ContentWrapper::insertOrReplace(*detailsGroup, Content{TRX_APPROVER, issuer});
+//   ContentWrapper::insertOrReplace(*detailsGroup, Content{TRX_APPROVER, issuer});
 
-  trxDoc = m_documentGraph.updateDocument(issuer, trxDoc.getHash(), trxDoc.getContentGroups());
+//   trxDoc = m_documentGraph.updateDocument(issuer, trxDoc.getHash(), trxDoc.getContentGroups());
 
-  trx_hash = trxDoc.getHash();
+//   trx_hash = trxDoc.getHash();
 
-  Transaction trx(trxDoc, m_documentGraph);
+//   Transaction trx(trxDoc, m_documentGraph);
   
-  trx.checkBalanced();
+//   trx.checkBalanced();
 
-  for (auto & component : trx.getComponents()) {
-    changeAcctBalanceRecursively(
-      component.account, 
-      trx.getLedger(), 
-      ((component.type == CREDIT_TAG_TYPE) ? -1 : 1) * component.amount, 
-      false
-    );
-  }
+//   for (auto & component : trx.getComponents()) {
+//     changeAcctBalanceRecursively(
+//       component.account, 
+//       trx.getLedger(), 
+//       ((component.type == CREDIT_TAG_TYPE) ? -1 : 1) * component.amount, 
+//       false
+//     );
+//   }
 
-  auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
-  auto bucketHash = ledgerToTrxBucket.getToNode();
+//   auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
+//   auto bucketHash = ledgerToTrxBucket.getToNode();
   
-  Edge::get(get_self(), bucketHash, trx_hash, name(UNAPPROVED_TRX)).erase();
-  Edge::get(get_self(), trx_hash, bucketHash, name(UNAPPROVED_TRX)).erase();
+//   Edge::get(get_self(), bucketHash, trx_hash, name(UNAPPROVED_TRX)).erase();
+//   Edge::get(get_self(), trx_hash, bucketHash, name(UNAPPROVED_TRX)).erase();
 
-  parent(issuer, bucketHash, trx_hash, APPROVED_TRX, APPROVED_TRX);
-}
+//   parent(issuer, bucketHash, trx_hash, APPROVED_TRX, APPROVED_TRX);
+// }
 
 void
 accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups & trx_info, bool approve)
@@ -276,6 +312,7 @@ accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups 
   Document trxDoc(get_self(), issuer, { detailsGroup, getSystemGroup(TRX_LABEL, TRX_TYPE) });
 
   const std::vector<uint64_t> & allowed_currencies = getAllowedCurrencies();
+  std::string true_string = "true";
 
   for (auto & compnt : trx.getComponents()) {
 
@@ -289,6 +326,15 @@ accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups 
       util::to_str("Currency ", compnt.amount.symbol.code(), " is not allowed.")
     )
     
+    Edge accountVariableEdge = Edge::get(get_self(), compnt.account, name(ACCOUNT_VARIABLE));
+    Document accountV(get_self(), accountVariableEdge.getToNode());
+    ContentWrapper accountCW = accountV.getContentWrapper();
+
+    EOS_CHECK(
+      accountCW.getOrFail(DETAILS, IS_LEAF)->getAs<std::string>() == true_string,
+      util::to_str("Only leafs are allowed to have associated components. Account ", compnt.account, " is not a leaf.")
+    )
+
     Document compntDoc(get_self(), issuer, {
       getTrxComponent(compnt.account, compnt.memo, compnt.amount, compnt.from, compnt.to, compnt.type, DETAILS),
       getSystemGroup(COMPONENT_LABEL, COMPONENT_TYPE) 
@@ -300,7 +346,7 @@ accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups 
       bindevent(issuer, *compnt.event, compntDoc.getHash());
     }
 
-    Edge compntToAcc(get_self(), issuer, compntDoc.getHash(), compnt.account, name(ACCOUNT_EDGE));
+    Edge compntToAcc(get_self(), issuer, compntDoc.getHash(), compnt.account, name(COMPONENT_ACCOUNT_EDGE));
   }
 
   auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
@@ -337,90 +383,6 @@ accounting::isApproved(const checksum256 & trx_hash)
 {
   auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
   return unapprovedEdge.empty();
-}
-
-ACTION
-accounting::updateacc(name updater, checksum256 account_hash, ContentGroups account_info) 
-{
-  require_auth(updater);
-  requireTrusted(updater);
-
-  Document accountDoc(get_self(), account_hash);
-
-  ContentWrapper accountCW = accountDoc.getContentWrapper();
-
-  EOS_CHECK(
-    accountCW.getOrFail(SYSTEM, TYPE_LABEL)->getAs<std::string>() == "account",
-    "Expected document type of 'account'"
-  )
-
-  auto newInfoCW = ContentWrapper(account_info);
-
-  auto [newDetailsIdx, newDetails] = newInfoCW.getGroup(DETAILS);
-
-  EOS_CHECK(newDetails != nullptr, "Details group was expected but not found in account_info");
- 
-  auto accountType = newInfoCW.getOrFail(newDetailsIdx, ACCOUNT_TYPE).second->getAs<int64_t>();
-  
-  auto accountTagType = newInfoCW.getOrFail(newDetailsIdx, ACCOUNT_TAG_TYPE).second->getAs<string>();
-
-  auto accountCode = newInfoCW.getOrFail(newDetailsIdx, ACCOUNT_CODE).second->getAs<string>();
-
-  auto accountName = newInfoCW.getOrFail(newDetailsIdx, ACCOUNT_NAME).second->getAs<string>();
-  
-  //Create the account
-  auto oldAccountName = accountCW.getOrFail(DETAILS, ACCOUNT_NAME)->getAs<std::string>();
-
-  auto oldPath = accountCW.getOrFail(DETAILS, ACCOUNT_PATH)->getAs<std::string>();
-
-  EOS_CHECK(
-    oldAccountName == accountName,
-    "Changing account name is not supported"
-  )
-
-  auto newAccountDetails = ContentGroup{
-    Content{CONTENT_GROUP_LABEL, DETAILS},
-    Content{ACCOUNT_NAME, accountName},
-    Content{ACCOUNT_TYPE, accountType},
-    Content{ACCOUNT_TAG_TYPE, accountTagType},
-    Content{ACCOUNT_CODE, accountCode},
-    Content{ACCOUNT_PATH, oldPath}
-  };
-  
-  *accountCW.getGroupOrFail(DETAILS) = newAccountDetails;
-  
-  m_documentGraph.updateDocument(updater, accountDoc.getHash(), accountDoc.getContentGroups());
-
-  //In order to support changing name, we must also store ledger or find it
-  //by navigating all the parent accounts
-  //Also we need to update children nodes path names
-
-  // if (oldAccountName != accountName) {
-  //   auto parentHash = Edge::get(get_self(), accountDoc.getHash(), name(OWNED_BY)).getToNode();
-
-  //   auto accountEdges = m_documentGraph.getEdgesFrom(parentHash, name("account"));
-
-  //   TableWrapper<document_table> docs(get_self(), get_self().value);
-
-  //   EOS_CHECK(docs.contains_by<"idhash"_n>(parentHash), 
-  //         "The parent document doesn't exists: " + readableHash(parentHash));
-    
-  //   //Check if there isn't already an account with the same name
-  //   for (const auto& edge : accountEdges) {
-      
-  //     auto account = docs.get_by<"idhash"_n>(edge.to_node);
-
-  //     ContentWrapper cg(account.getContentGroups());
-
-  //     auto name = cg.getOrFail(DETAILS, ACCOUNT_NAME)->getAs<string>();
-
-  //     EOS_CHECK(
-  //       util::toLowerCase(std::move(name)) != util::toLowerCase(accountName), 
-  //       "There is already an account with name: " + accountName
-  //     );
-  //   }
-  // }
-
 }
 
 ACTION
@@ -576,11 +538,12 @@ accounting::remtrustacnt(name account)
 }
 
 ACTION
-accounting::addcurrency(symbol & currency_symbol)
+accounting::addcurrency(const name & updater, symbol & currency_symbol)
 {
   TRACE_FUNCTION()
 
-  require_auth(get_self());
+  require_auth(updater);
+  requireTrusted(updater);
 
   Settings & settings = Settings::instance();
 
@@ -600,11 +563,13 @@ accounting::addcurrency(symbol & currency_symbol)
 }
 
 ACTION
-accounting::remcurrency(symbol & currency_symbol)
+accounting::remcurrency(const name & updater, symbol & currency_symbol)
 {
   TRACE_FUNCTION()
 
-  require_auth(get_self());
+  require_auth(updater);
+  requireTrusted(updater);
+
 
   Settings & settings = Settings::instance();
   settings.remove(Content(ALLOWED_CURRENCIES_LABEL, asset(0, currency_symbol)), ALLOWED_CURRENCIES_GROUP);
@@ -748,30 +713,15 @@ accounting::getAccountPath(std::string account, checksum256 parent, const checks
 {
   TRACE_FUNCTION()
 
-  const char* SEPARATOR = " > ";
+  if (parent == ledger) return account;
 
   TableWrapper<document_table> docs(get_self(), get_self().value);
+  auto parentDoc = docs.get_by<"idhash"_n>(parent);
+  ContentWrapper parentCW = parentDoc.getContentWrapper();
 
-  while (parent != ledger) {
-    auto doc = docs.get_by<"idhash"_n>(parent);
+  const std::string parentPath = parentCW.getOrFail(DETAILS, ACCOUNT_PATH)->getAs<std::string>();
 
-    ContentWrapper accWrapper = doc.getContentWrapper();
-
-    const string& accountName = accWrapper.getOrFail(DETAILS, ACCOUNT_NAME)->getAs<std::string>();
-
-    account = util::to_str(accountName, SEPARATOR, account);
-
-    auto toParentEdges = m_documentGraph.getEdgesFrom(doc.getHash(), name(OWNED_BY));
-
-    EOS_CHECK(
-      !toParentEdges.empty(),
-      util::to_str("Missing edge [ownedby] from account: ",  doc.getHash(), " to parent")
-    )
-
-    parent = toParentEdges[0].getToNode();
-  }
-
-  return account;
+  return util::to_str(parentPath, " > ", account);
 }
 
 ContentGroup
@@ -928,7 +878,17 @@ bool
 accounting::isAllowedCurrency(const symbol & currency_symbol, const std::vector<uint64_t> & allowed_currencies)
 {
   TRACE_FUNCTION()
-  return std::binary_search(allowed_currencies.begin(), allowed_currencies.end(), currency_symbol.code().raw());
+
+  bool isAllowed = false;
+
+  for (auto currency : allowed_currencies) {
+    if (currency == currency_symbol.code().raw()) {
+      isAllowed = true;
+      break;
+    }
+  }
+
+  return isAllowed;
 }
 
 const std::vector<uint64_t>&

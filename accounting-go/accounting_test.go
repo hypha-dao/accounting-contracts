@@ -488,17 +488,38 @@ func SetupTrxTestInfo(env *Environment, t *testing.T) (accounting.TrxTestInfo) {
 	ledgerDoc, err := docgraph.LoadDocument(env.ctx, &env.api, env.Accounting, ledgerHashStr)
 	assert.NilError(t, err)
 
+	fmt.Println("Ledger HASH:", ledgerDoc.Hash)
+
 	expensesAcc, err := CreateAccount(t, env, account_expenses, ledgerDoc.Hash, ledgerDoc.Hash)
 	assert.NilError(t, err)
+
+	fmt.Println("Expenses HASH:", expensesAcc.Hash)
 
 	incomeAcc, err := CreateAccount(t, env, account_income, ledgerDoc.Hash, ledgerDoc.Hash)
 	assert.NilError(t, err)
 
+	fmt.Println("Income HASH:", incomeAcc.Hash)
+
 	mktingAcc, err := CreateAccount(t, env, account_mkting, expensesAcc.Hash, ledgerDoc.Hash)
 	assert.NilError(t, err)
 
+	fmt.Println("Marketing HASH:", mktingAcc.Hash)
+
+	developmentAcc, err := CreateAccount(t, env, account_development, expensesAcc.Hash, ledgerDoc.Hash)
+	assert.NilError(t, err)
+
+	fmt.Println("Development HASH:", developmentAcc.Hash)
+
 	salaryAcc, err := CreateAccount(t, env, account_salary, incomeAcc.Hash, ledgerDoc.Hash)
 	assert.NilError(t, err)
+
+	fmt.Println("Salary HASH:", salaryAcc.Hash)
+
+	salesAcc, err := CreateAccount(t, env, account_sales, incomeAcc.Hash, ledgerDoc.Hash)
+	assert.NilError(t, err)
+
+	fmt.Println("Salary HASH:", salesAcc.Hash)
+
 
 	usd2Symbol, _ := eos.StringToSymbol("2,USD")
 	husd2Symbol, _ := eos.StringToSymbol("2,HUSD")
@@ -515,7 +536,9 @@ func SetupTrxTestInfo(env *Environment, t *testing.T) (accounting.TrxTestInfo) {
 			"Expenses": expensesAcc,
 			"Income": incomeAcc,
 			"Marketing": mktingAcc,
+			"Development":developmentAcc,
 			"Salary": salaryAcc,
+			"Sales": salesAcc,
 		},
 		Currencies: map[string]eos.Symbol {
 			"USD2": usd2Symbol,
@@ -578,8 +601,8 @@ func TestUpserttrx(t *testing.T) {
 
 		ledgerDoc := trxInfo.Ledger
 
-		expensesAcc := trxInfo.Accounts["Expenses"]
-		incomeAcc := trxInfo.Accounts["Income"]
+		developmentAcc := trxInfo.Accounts["Development"]
+		salesAcc := trxInfo.Accounts["Sales"]
 		mktingAcc := trxInfo.Accounts["Marketing"]
 		salaryAcc := trxInfo.Accounts["Salary"]
 
@@ -593,7 +616,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				incomeAcc.Hash.String(), 
+				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
 			},
@@ -603,7 +626,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				expensesAcc.Hash.String(), 
+				developmentAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"CREDIT",
 			},
@@ -640,8 +663,8 @@ func TestUpserttrx(t *testing.T) {
 		fmt.Println("---------------------------------")
 		fmt.Println(ledgerToString)
 
-		assert.Assert(t, CheckAccountBalances(ledgerToString, "Expenses", []string{}))
-		assert.Assert(t, CheckAccountBalances(ledgerToString, "Income", []string{}))
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Development", []string{}))
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Sales", []string{}))
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Marketing", []string{}))
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Salary", []string{}))
 
@@ -659,8 +682,8 @@ func TestUpserttrx(t *testing.T) {
 
 		ledgerDoc := trxInfo.Ledger
 
-		expensesAcc := trxInfo.Accounts["Expenses"]
-		incomeAcc := trxInfo.Accounts["Income"]
+		developmentAcc := trxInfo.Accounts["Development"]
+		salesAcc := trxInfo.Accounts["Sales"]
 		mktingAcc := trxInfo.Accounts["Marketing"]
 		salaryAcc := trxInfo.Accounts["Salary"]
 
@@ -674,7 +697,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				incomeAcc.Hash.String(), 
+				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
 			},
@@ -684,7 +707,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				expensesAcc.Hash.String(), 
+				developmentAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"CREDIT",
 			},
@@ -722,7 +745,11 @@ func TestUpserttrx(t *testing.T) {
 		fmt.Println(ledgerToString)
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Income", []string{
-			"[account_USD:-1000.00 USD]", "[global_USD:-1000.00 USD]", "[global_HUSD:500.00 HUSD]",
+			"[global_USD:-1000.00 USD]", "[global_HUSD:500.00 HUSD]",
+		}))
+
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Sales", []string{
+			"[account_USD:-1000.00 USD]", "[global_USD:-1000.00 USD]",
 		}))
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Salary", []string{
@@ -730,7 +757,11 @@ func TestUpserttrx(t *testing.T) {
 		}))
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Expenses", []string{
-			"[account_HUSD:-500.00 HUSD]", "[global_HUSD:-500.00 HUSD]", "[global_USD:1000.00 USD]",
+			"[global_HUSD:-500.00 HUSD]", "[global_USD:1000.00 USD]",
+		}))
+
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Development", []string{
+			"[account_HUSD:-500.00 HUSD]", "[global_HUSD:-500.00 HUSD]",
 		}))
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Marketing", []string{
@@ -741,6 +772,14 @@ func TestUpserttrx(t *testing.T) {
 
 
 		usd3Symbol, _ := eos.StringToSymbol("3,USD")
+		btc8Symbol, _ := eos.StringToSymbol("8,BTC")
+		tlos4Symbol, _ := eos.StringToSymbol("4,TLOS")
+
+		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, "8,BTC")
+		assert.NilError(t, err)
+
+		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, "4,TLOS")
+		assert.NilError(t, err)
 
 		trxDoc2, err := createTrx([]accounting.TrxComponent{
 			accounting.TrxComponent{
@@ -754,8 +793,28 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				incomeAcc.Hash.String(), 
+				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 20000, Symbol: usd3Symbol },
+				"DEBIT",
+			},
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: btc8Symbol },
+				"CREDIT",
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: btc8Symbol },
+				"DEBIT",
+			},
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 500000, Symbol: tlos4Symbol },
+				"CREDIT",
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 500000, Symbol: tlos4Symbol },
 				"DEBIT",
 			},
 		}, &ledgerDoc)
@@ -778,8 +837,8 @@ func TestUpserttrx(t *testing.T) {
 		trxFields2["trx_name"] = "transaction name"
 		trxFields2["id"] = "2"
 
-		edgesLength2["from"] = 4
-		edgesLength2["to"] = 4
+		edgesLength2["from"] = 8
+		edgesLength2["to"] = 8
 
 		assert.Assert(t, CheckTransaction(trxNodeInfo2, trxFields2, edgesLength2))	
 
@@ -791,7 +850,13 @@ func TestUpserttrx(t *testing.T) {
 		fmt.Print("LEDGER:\n", ledgerToString, "\n\n\n")
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Income", []string{
-			"[account_USD:-980.000 USD]", "[global_USD:-900.000 USD]", "[global_HUSD:500.00 HUSD]",
+			"[global_USD:-900.000 USD]", "[global_HUSD:500.00 HUSD]", "[global_BTC:0.00100000 BTC]",
+			"[global_TLOS:50.0000 TLOS]",
+		}))
+
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Sales", []string{
+			"[account_USD:-980.000 USD]", "[global_USD:-980.000 USD]", "[account_BTC:0.00100000 BTC]", "[global_BTC:0.00100000 BTC]",
+			"[account_TLOS:50.0000 TLOS]", "[global_TLOS:50.0000 TLOS]",
 		}))
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Salary", []string{
@@ -799,11 +864,17 @@ func TestUpserttrx(t *testing.T) {
 		}))
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Expenses", []string{
-			"[account_HUSD:-500.00 HUSD]", "[global_HUSD:-500.00 HUSD]", "[global_USD:900.000 USD]",
+			"[global_HUSD:-500.00 HUSD]", "[global_USD:900.000 USD]", "[global_BTC:-0.00100000 BTC]",
+			"[global_TLOS:-50.0000 TLOS]",
+		}))
+
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Development", []string{
+			"[account_HUSD:-500.00 HUSD]", "[global_HUSD:-500.00 HUSD]",
 		}))
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Marketing", []string{
-			"[account_USD:900.000 USD]", "[global_USD:900.000 USD]",
+			"[account_USD:900.000 USD]", "[global_USD:900.000 USD]", "[account_BTC:-0.00100000 BTC]", "[global_BTC:-0.00100000 BTC]",
+			"[account_TLOS:-50.0000 TLOS]", "[global_TLOS:-50.0000 TLOS]",
 		}))
 
 		fmt.Print("\n\n\n")
@@ -820,7 +891,7 @@ func TestUpserttrx(t *testing.T) {
 
 		ledgerDoc := trxInfo.Ledger
 
-		incomeAcc := trxInfo.Accounts["Income"]
+		salesAcc := trxInfo.Accounts["Sales"]
 		mktingAcc := trxInfo.Accounts["Marketing"]
 
 		usd2Symbol := trxInfo.Currencies["USD2"]
@@ -832,7 +903,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				incomeAcc.Hash.String(), 
+				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
 			},
@@ -864,7 +935,7 @@ func TestUpserttrx(t *testing.T) {
 
 		fmt.Println("---------------------------------")
 
-		expensesAcc := trxInfo.Accounts["Expenses"]
+		developmentAcc := trxInfo.Accounts["Development"]
 		salaryAcc := trxInfo.Accounts["Salary"]
 
 		husd2Symbol := trxInfo.Currencies["HUSD2"]
@@ -876,7 +947,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				incomeAcc.Hash.String(), 
+				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
 			},
@@ -886,7 +957,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				expensesAcc.Hash.String(), 
+				developmentAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"CREDIT",
 			},
@@ -927,7 +998,7 @@ func TestUpserttrx(t *testing.T) {
 
 		ledgerDoc := trxInfo.Ledger
 
-		incomeAcc := trxInfo.Accounts["Income"]
+		salesAcc := trxInfo.Accounts["Sales"]
 		mktingAcc := trxInfo.Accounts["Marketing"]
 
 		usd2Symbol := trxInfo.Currencies["USD2"]
@@ -939,7 +1010,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				incomeAcc.Hash.String(), 
+				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
 			},
@@ -971,7 +1042,7 @@ func TestUpserttrx(t *testing.T) {
 
 		fmt.Println("---------------------------------")
 
-		expensesAcc := trxInfo.Accounts["Expenses"]
+		developmentAcc := trxInfo.Accounts["Development"]
 		salaryAcc := trxInfo.Accounts["Salary"]
 
 		husd2Symbol := trxInfo.Currencies["HUSD2"]
@@ -983,7 +1054,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				incomeAcc.Hash.String(), 
+				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
 			},
@@ -993,7 +1064,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				expensesAcc.Hash.String(), 
+				developmentAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"CREDIT",
 			},
@@ -1028,7 +1099,11 @@ func TestUpserttrx(t *testing.T) {
 		fmt.Println(ledgerToString)
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Income", []string{
-			"[account_USD:-1000.00 USD]", "[global_USD:-1000.00 USD]", "[global_HUSD:500.00 HUSD]",
+			"[global_USD:-1000.00 USD]", "[global_HUSD:500.00 HUSD]",
+		}))
+
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Sales", []string{
+			"[account_USD:-1000.00 USD]", "[global_USD:-1000.00 USD]",
 		}))
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Salary", []string{
@@ -1036,7 +1111,11 @@ func TestUpserttrx(t *testing.T) {
 		}))
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Expenses", []string{
-			"[account_HUSD:-500.00 HUSD]", "[global_HUSD:-500.00 HUSD]", "[global_USD:1000.00 USD]",
+			"[global_HUSD:-500.00 HUSD]", "[global_USD:1000.00 USD]",
+		}))
+
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Development", []string{
+			"[account_HUSD:-500.00 HUSD]", "[global_HUSD:-500.00 HUSD]",
 		}))
 
 		assert.Assert(t, CheckAccountBalances(ledgerToString, "Marketing", []string{
@@ -1057,7 +1136,7 @@ func TestUpserttrx(t *testing.T) {
 
 		ledgerDoc := trxInfo.Ledger
 
-		incomeAcc := trxInfo.Accounts["Income"]
+		salesAcc := trxInfo.Accounts["Sales"]
 		mktingAcc := trxInfo.Accounts["Marketing"]
 
 		usd2Symbol := trxInfo.Currencies["USD2"]
@@ -1070,7 +1149,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				incomeAcc.Hash.String(), 
+				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 10000000, Symbol: usd3Symbol },
 				"CREDIT",
 			},
@@ -1092,7 +1171,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				incomeAcc.Hash.String(), 
+				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd3Symbol },
 				"CREDIT",
 			},
@@ -1113,7 +1192,7 @@ func TestUpserttrx(t *testing.T) {
 				"DEBIT",
 			},
 			accounting.TrxComponent{
-				incomeAcc.Hash.String(), 
+				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 10000, Symbol: usd3Symbol },
 				"CREDIT",
 			},
@@ -1139,6 +1218,13 @@ func TestUpserttrx(t *testing.T) {
 	})
 
 }
+
+
+
+
+
+
+
 
 /* func TestBalanceTrx(t *testing.T) {
 

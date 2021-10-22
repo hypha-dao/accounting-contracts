@@ -35,7 +35,7 @@ class TableWrapper
   }
 
   template<name::raw Index, class U>
-  inline auto
+  inline bool
   contains_by(const U& at) const
   {
     return find_by<Index>(at) != end_by<Index>();
