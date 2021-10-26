@@ -26,6 +26,17 @@ type createAccount struct {
 	AccountInfo []docgraph.ContentGroup `json:"account_info"`
 }
 
+type updateAccount struct {
+	Updater eos.AccountName `json:"updater"`
+	AccountHash eos.Checksum256 `json:"account_hash"`
+	AccountInfo []docgraph.ContentGroup `json:"account_info"`
+}
+
+type deleteAccount struct {
+	Deleter eos.AccountName `json:"updater"`
+	AccountHash eos.Checksum256 `json:"account_hash"`
+}
+
 type transact struct {
 	Issuer          eos.AccountName         `json: "issuer"`
 	TransactionInfo []docgraph.ContentGroup `json: "trx_info"`
@@ -61,6 +72,12 @@ type trustAccount struct {
 }
 
 type addCurrency struct {
+	Issuer eos.AccountName `json: issuer`
+	Currency eos.Symbol `json: currency`
+}
+
+type remCurrency struct {
+	Authorizer eos.AccountName `json: authorizer`
 	Currency eos.Symbol `json: currency`
 }
 
@@ -145,8 +162,40 @@ func CreateAcct(ctx context.Context, api *eos.API, contract, creator eos.Account
 	return eostest.ExecTrx(ctx, api, actions)
 }
 
-//func CreateTrx(ctx)
+func Updateacc(ctx context.Context, api *eos.API, contract, updater eos.AccountName, accountHash eos.Checksum256, accountInfo []docgraph.ContentGroup) (string, error) {
 
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("updateacc"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: updater, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(updateAccount{
+			Updater:     updater,
+			AccountHash: accountHash,
+			AccountInfo: accountInfo,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+}
+
+func Deleteacc(ctx context.Context, api *eos.API, contract, deleter eos.AccountName, accountHash eos.Checksum256) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("deleteacc"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: deleter, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(deleteAccount{
+			Deleter:     deleter,
+			AccountHash: accountHash,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+}
 
 func CreateTrxWe(ctx context.Context, api *eos.API, contract, creator eos.AccountName, trx []docgraph.ContentGroup) (string, error) {
 
@@ -320,7 +369,7 @@ func RemTrustedAccount(ctx context.Context, api *eos.API, contract eos.AccountNa
 	return eostest.ExecTrx(ctx, api, actions)
 }
 
-func AddCurrency(ctx context.Context, api *eos.API, contract eos.AccountName, currency string) (string, error) {
+func AddCurrency(ctx context.Context, api *eos.API, contract eos.AccountName, issuer eos.AccountName, currency string) (string, error) {
 
 	symbol, err := eos.StringToSymbol(currency)
 
@@ -334,9 +383,10 @@ func AddCurrency(ctx context.Context, api *eos.API, contract eos.AccountName, cu
 		Account: contract,
 		Name: eos.ActN("addcurrency"),
 		Authorization: []eos.PermissionLevel {
-			{ Actor: contract, Permission: eos.PN("active") },
+			{ Actor: issuer, Permission: eos.PN("active") },
 		},
 		ActionData: eos.NewActionData(addCurrency {
+			Issuer: issuer,
 			Currency: symbol,
 		}),
 	}}
@@ -344,6 +394,33 @@ func AddCurrency(ctx context.Context, api *eos.API, contract eos.AccountName, cu
 	return eostest.ExecTrx(ctx, api, actions)
 
 }
+
+func RemoveCurrency(ctx context.Context, api *eos.API, contract eos.AccountName, authorizer eos.AccountName, currency string) (string, error) {
+
+	symbol, err := eos.StringToSymbol(currency)
+
+	if err != nil {
+		return "error", fmt.Errorf("error removing currency: %s", err)
+	}
+
+	fmt.Println("Removing currency: ", currency)
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name: eos.ActN("remcurrency"),
+		Authorization: []eos.PermissionLevel {
+			{ Actor: authorizer, Permission: eos.PN("active") },
+		},
+		ActionData: eos.NewActionData(remCurrency {
+			Authorizer: authorizer,
+			Currency: symbol,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+
+}
+
 
 //Check with permissions
 func Event(ctx context.Context, api *eos.API, contract, issuer eos.AccountName, trx []docgraph.ContentGroup) (string, error) {
@@ -596,4 +673,36 @@ func GetTrxNodeInfo (ctx context.Context, api *eos.API, contract eos.AccountName
 		Components: components,
 	}, nil
 
+}
+
+func GetAllowedCurrencies (ctx context.Context, api *eos.API, contract eos.AccountName) ([]eos.Symbol, error) {
+
+	settingsDoc, err := docgraph.GetLastDocumentOfEdge(ctx, api, contract, "settings")
+
+	if err != nil {
+		return []eos.Symbol{}, err
+	}
+
+	allowedCurrenciesGroup, err := settingsDoc.GetContentGroup("allowed_currencies")
+
+	if err != nil {
+		return []eos.Symbol{}, err
+	}
+
+	var allowedCurrencies []eos.Symbol
+
+	for _, currency := range *allowedCurrenciesGroup {
+
+		if currency.Label == "allowed_currency" {
+			currencyAsset, err := currency.Value.Asset()
+
+			if err != nil {
+				return []eos.Symbol{}, err
+			}
+
+			allowedCurrencies = append(allowedCurrencies, currencyAsset.Symbol)
+		}
+	}
+
+	return allowedCurrencies, nil
 }

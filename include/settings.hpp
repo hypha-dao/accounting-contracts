@@ -67,6 +67,8 @@ class Settings
     return ContentWrapper(m_settings.getContentGroups());
   }
 
+  void save();
+
   void 
   addOrReplace(const string& setting, 
                Content::FlexValue value, 

@@ -100,6 +100,14 @@ void Settings::remove(const Content& setting, const char* groupName)
                                      m_settings.getContentGroups());
 }
 
+void Settings::save()
+{
+  auto dgraph = DocumentGraph(accounting::getName());
+  m_settings = dgraph.updateDocument(accounting::getName(), 
+                                     m_settings.getHash(),
+                                     m_settings.getContentGroups());  
+}
+
 Settings& 
 Settings::instance() 
 {

@@ -398,6 +398,30 @@ const account_expenses = `
 }
 `
 
+const account_expenses_update = `
+{
+	"content_groups": 
+	[
+			[
+					{
+							"label": "content_group_label",
+							"value": [
+									"string",
+									"details"
+							]
+					},
+					{
+							"label": "account_name",
+							"value": [
+									"string",
+									"Expenses Updated"
+							]
+					}
+		 ]
+	]
+}
+`
+
 const account_salary = `
 {
 	"content_groups": 

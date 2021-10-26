@@ -67,6 +67,7 @@ constexpr auto EVENT_LABEL = "Event";
 constexpr auto EVENT_SOURCE = "source";
 constexpr auto EVENT_CURSOR = "cursor";
 constexpr auto BALANCE_UPDATE = "update_date";
+constexpr auto OWNS_COMPONENT = "ownscmpt";
 
 constexpr auto MAX_REMOVABLE_DOCS = int64_t(100);
 

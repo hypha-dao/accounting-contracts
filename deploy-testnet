@@ -31,4 +31,9 @@ ADD ALLOWED CURRENCIES
 
 
 
+===============================================================
+
+TRUSTED ACCOUNT
+
+./cleos -u https://testnet.telos.caleos.io push action gh.hypha addtrustacnt '["danipootucm1"]' -p gh.hypha@active
 

@@ -81,7 +81,12 @@ accounting::createacc(const name & creator, ContentGroups & account_info)
   std::string accountCode = contentWrap.getOrFail(dIdx, ACCOUNT_CODE).second->getAs<std::string>();
   std::string accountName = contentWrap.getOrFail(dIdx, ACCOUNT_NAME).second->getAs<std::string>();
   checksum256 ledger = contentWrap.getOrFail(dIdx, LEDGER_ACCOUNT).second->getAs<checksum256>();
-  
+
+  EOS_CHECK(
+    accountName.size() > 0,
+    "Account name can not be empty."
+  )
+
   TableWrapper<document_table> docs(get_self(), get_self().value);
 
   EOS_CHECK(
@@ -110,16 +115,12 @@ accounting::createacc(const name & creator, ContentGroups & account_info)
       // )
     }
   } else if (parentHash != ledger) {
-    TableWrapper<edge_table> edges(get_self(), get_self().value);
-
     EOS_CHECK(
-      !edges.contains_by<"bytoname"_n>(hypha::concatHash(parentHash, name(COMPONENT_ACCOUNT_EDGE))),
+      !hasAssociatedComponents(parentHash),
       util::to_str("Parent account already has associated components. Parent hash: ", parentHash)
     )
 
-    Edge accountVariableEdge = Edge::get(get_self(), parentHash, name(ACCOUNT_VARIABLE));
-
-    Document parentVDoc(get_self(), accountVariableEdge.getToNode());
+    Document parentVDoc = getAccountVariable(parentHash);
     ContentWrapper pvContentWrapper = parentVDoc.getContentWrapper();
 
     auto [pvDIdx, pvDetailsGroup] = pvContentWrapper.getGroup(DETAILS);
@@ -172,13 +173,97 @@ accounting::createacc(const name & creator, ContentGroups & account_info)
 }
 
 ACTION
-accounting::updateacc(name updater, checksum256 account_hash, ContentGroups account_info) 
+accounting::updateacc(const name & updater, const checksum256 & account_hash, ContentGroups & account_info) 
 {
-  // require_auth(updater);
-  // requireTrusted(updater);
+  TRACE_FUNCTION()
+
+  require_auth(updater);
+  requireTrusted(updater);
+
+  ContentWrapper contentW(account_info);
+
+  std::string accountName = contentW.getOrFail(DETAILS, ACCOUNT_NAME)->getAs<std::string>();
+  EOS_CHECK(accountName.size() > 0, util::to_str("An account name can not be empty."))
+
+  Document accountVariableDoc = getAccountVariable(account_hash);
+  ContentWrapper avCW = accountVariableDoc.getContentWrapper();
+
+  auto [avDIdx, pvDetailsGroup] = avCW.getGroup(DETAILS);
+
+  avCW.insertOrReplace(avDIdx, Content{ ACCOUNT_NAME, accountName });
+  m_documentGraph.updateDocument(get_self(), accountVariableDoc.getHash(), accountVariableDoc.getContentGroups());
+}
+
+ACTION
+accounting::deleteacc(const name & deleter, const checksum256 & account_hash)
+{
+  TRACE_FUNCTION()
+
+  require_auth(deleter);
+  requireTrusted(deleter);
+
+  EOS_CHECK(
+    !hasAssociatedComponents(account_hash),
+    util::to_str("The account ", account_hash, " already has associated components, it can not be deleted.")
+  )
+
+  Document accountVDoc = getAccountVariable(account_hash);
+  ContentWrapper avCW = accountVDoc.getContentWrapper();
+
+  std::string isLeaf = avCW.getOrFail(DETAILS, IS_LEAF)->getAs<std::string>();
+
+  EOS_CHECK(
+    isLeaf == std::string("true"),
+    util::to_str("The account ", account_hash, " is not a leaf, it can not be deleted.")
+  )
+
+  Document balancesDoc = getAccountBalances(account_hash);
+  ContentWrapper bCW = balancesDoc.getContentWrapper();
+
+  ContentGroup * bGroup = bCW.getGroupOrFail(BALANCES);
+
+  EOS_CHECK(
+    bGroup->size() <= 1,
+    util::to_str("The account ", account_hash, " already has balances associated with it, it can not be deleted.")
+  )
+  
+  const checksum256 parentHash = Edge::get(get_self(), account_hash, name(OWNED_BY)).getToNode();
+
+  m_documentGraph.eraseDocument(account_hash, true);
+  m_documentGraph.eraseDocument(accountVDoc.getHash(), true);
+  m_documentGraph.eraseDocument(balancesDoc.getHash(), true);
+
+  bool isLedger = Edge::exists(get_self(), getRoot().getHash(), parentHash, name("ledger"));
+  if (isLedger) { return; }
+
+  auto [hasChildren, _] = Edge::getIfExists(get_self(), parentHash, name(ACCOUNT_EDGE));
+
+  if (!hasChildren) {
+    Document parentVDoc = getAccountVariable(parentHash);
+    ContentWrapper pvCW = parentVDoc.getContentWrapper();
+    
+    auto [pvDIdx, pvDetailsGroup] = pvCW.getGroup(DETAILS);
+
+    pvCW.insertOrReplace(pvDIdx, Content{ IS_LEAF, std::string("true") });
+    
+    m_documentGraph.updateDocument(get_self(), parentVDoc.getHash(), parentVDoc.getContentGroups());
+  }
 
 }
 
+Document
+accounting::getAccountVariable(const checksum256 & account_hash)
+{
+  Edge accountVariableEdge = Edge::get(get_self(), account_hash, name(ACCOUNT_VARIABLE));
+  return Document(get_self(), accountVariableEdge.getToNode());
+}
+
+bool
+accounting::hasAssociatedComponents(const checksum256 & account_hash)
+{
+  TableWrapper<edge_table> edges(get_self(), get_self().value);
+  return edges.contains_by<"bytoname"_n>(hypha::concatHash(account_hash, name(COMPONENT_ACCOUNT_EDGE)));
+}
 
 
 ACTION
@@ -219,62 +304,6 @@ accounting::deletetrx(const name & deleter, const checksum256 & trx_hash)
 
   deleteTransaction(trx_hash);
 }
-
-// ACTION
-// accounting::balancetrx(const name & issuer, checksum256 & trx_hash)
-// {
-//   TRACE_FUNCTION()
-
-//   require_auth(issuer);
-//   requireTrusted(issuer);
-
-//   auto unapprovedEdge = m_documentGraph.getEdgesFrom(trx_hash, name(UNAPPROVED_TRX));
-
-//   EOS_CHECK(
-//     !unapprovedEdge.empty(),
-//     util::to_str("Cannot balance approved transaction: ", trx_hash)
-//   )
-
-//   auto trxComponents = m_documentGraph.getEdgesFrom(trx_hash, name(COMPONENT_TYPE));
-//   for (Edge& componentEdge : trxComponents) {
-//     Document cmpDoc(get_self(), componentEdge.getToNode());
-//     //Verify component has linked account
-//     Edge::get(get_self(), cmpDoc.getHash(), name(ACCOUNT_EDGE));
-//   }
-
-//   Document trxDoc(get_self(), trx_hash);
-
-//   auto trxCW = trxDoc.getContentWrapper();
-
-//   auto detailsGroup = trxCW.getGroupOrFail(DETAILS);
-
-//   ContentWrapper::insertOrReplace(*detailsGroup, Content{TRX_APPROVER, issuer});
-
-//   trxDoc = m_documentGraph.updateDocument(issuer, trxDoc.getHash(), trxDoc.getContentGroups());
-
-//   trx_hash = trxDoc.getHash();
-
-//   Transaction trx(trxDoc, m_documentGraph);
-  
-//   trx.checkBalanced();
-
-//   for (auto & component : trx.getComponents()) {
-//     changeAcctBalanceRecursively(
-//       component.account, 
-//       trx.getLedger(), 
-//       ((component.type == CREDIT_TAG_TYPE) ? -1 : 1) * component.amount, 
-//       false
-//     );
-//   }
-
-//   auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
-//   auto bucketHash = ledgerToTrxBucket.getToNode();
-  
-//   Edge::get(get_self(), bucketHash, trx_hash, name(UNAPPROVED_TRX)).erase();
-//   Edge::get(get_self(), trx_hash, bucketHash, name(UNAPPROVED_TRX)).erase();
-
-//   parent(issuer, bucketHash, trx_hash, APPROVED_TRX, APPROVED_TRX);
-// }
 
 void
 accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups & trx_info, bool approve)
@@ -538,12 +567,12 @@ accounting::remtrustacnt(name account)
 }
 
 ACTION
-accounting::addcurrency(const name & updater, symbol & currency_symbol)
+accounting::addcurrency(const name & issuer, symbol & currency_symbol)
 {
   TRACE_FUNCTION()
 
-  require_auth(updater);
-  requireTrusted(updater);
+  require_auth(issuer);
+  requireTrusted(issuer);
 
   Settings & settings = Settings::instance();
 
@@ -563,16 +592,33 @@ accounting::addcurrency(const name & updater, symbol & currency_symbol)
 }
 
 ACTION
-accounting::remcurrency(const name & updater, symbol & currency_symbol)
+accounting::remcurrency(const name & authorizer, const symbol & currency_symbol)
 {
   TRACE_FUNCTION()
 
-  require_auth(updater);
-  requireTrusted(updater);
-
+  require_auth(authorizer);
+  requireTrusted(authorizer);
 
   Settings & settings = Settings::instance();
-  settings.remove(Content(ALLOWED_CURRENCIES_LABEL, asset(0, currency_symbol)), ALLOWED_CURRENCIES_GROUP);
+  ContentWrapper settingsCW = settings.getWrapper();
+
+  auto [cgIdx, currenciesGroup] = settingsCW.getGroup(ALLOWED_CURRENCIES_GROUP);
+
+  int i = 0;
+
+  for (auto itr = currenciesGroup->begin(); itr != currenciesGroup->end(); itr++) {
+    if (itr->label == ALLOWED_CURRENCIES_LABEL) {
+      uint64_t allowed_asset_code = (itr->getAs<asset>()).symbol.code().raw();
+      if (allowed_asset_code == currency_symbol.code().raw()) {
+        settingsCW.removeContent(cgIdx, i);
+        settings.save();
+        return;
+      }
+    }
+    i++;
+  }
+
+  EOS_CHECK(false, util::to_str("There is no allowed currency with code ", currency_symbol.code(), "."))
 }
 
 ACTION 

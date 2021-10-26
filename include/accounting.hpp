@@ -139,25 +139,20 @@ CONTRACT accounting : public contract {
     }
   }
 
-  /**
-  * Creates the root document (useful for testing)
-  */ 
   ACTION
   createroot(std::string notes);
 
-  /**
-  * Adds a ledger account to the graph
-  *
-  * 
-  */
   ACTION
   addledger(name creator, ContentGroups& ledger_info);
 
-  /**
-  * Adds an account to the graph
-  */
   ACTION 
   createacc(const name & creator, ContentGroups& account_info);
+
+  ACTION
+  updateacc(const name & updater, const checksum256 & account_hash, ContentGroups & account_info);
+
+  ACTION
+  deleteacc(const name & deleter, const checksum256 & account_hash);
 
   ACTION
   upserttrx(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve);
@@ -165,77 +160,40 @@ CONTRACT accounting : public contract {
   ACTION
   deletetrx(const name & deleter, const checksum256 & trx_hash);
 
-  // ACTION
-  // balancetrx(const name & issuer, checksum256 & trx_hash);
-
-  ACTION
-  newevent(name issuer, ContentGroups trx_info);
-
   ACTION
   setsetting(string setting, Content::FlexValue value);
 
   ACTION
   remsetting(string setting);
-
-  ACTION
-  updateacc(name updater, checksum256 account_hash, ContentGroups account_info);
   
-  /**
-  * Adds an account to the trusted accounts group. Necesary to trigger newevent action
-  */  
   ACTION
   addtrustacnt(name account);
 
-  /**
-  * Remove an account from the trusted accounts group.
-  */
   ACTION
   remtrustacnt(name account);
 
-  /**
-  * Adds a new allowed currency.
-  */
   ACTION
   addcurrency(const name & updater, symbol & currency_symbol);
 
   ACTION
-  remcurrency(const name & updater, symbol & currency_symbol);
+  remcurrency(const name & authorizer, const symbol & currency_symbol);
 
-  /**
-   * @brief Binds an event with a component document
-   * 
-   * @param event_hash 
-   * @param component_hash 
-   * @return ACTION 
-   */
+  ACTION
+  newevent(name issuer, ContentGroups trx_info);
+
   ACTION
   bindevent(name updater, checksum256 event_hash, checksum256 component_hash);
 
-  /**
-   * @brief Unbinds an event from a component document
-   * 
-   * @param event_hash 
-   * @param component_hash 
-   * @return ACTION 
-   */
   ACTION
   unbindevent(name updater, checksum256 event_hash, checksum256 component_hash);
-    
-  /**
-  * Clears the events from the graph
-  */
+
   ACTION
   clearevent(int64_t max_removable_trx);
 
-  /**
-  * Clears the data
-  */
   ACTION
   clean(ContentGroups& tables);
 
-  /**
-  * Gets the root document of the graph
-  */
+
   static const Document& 
   getRoot();
 
@@ -263,11 +221,10 @@ CONTRACT accounting : public contract {
   bool
   isApproved(const checksum256 & trx_hash);
   
-  /**
-  * Retreives the hash of the Events Bucket document
-  */
   checksum256
   getEventBucket();
+
+
  private:
 
   struct Balance
@@ -300,6 +257,12 @@ CONTRACT accounting : public contract {
   ContentGroup
   getBalancesSystemGroup(int64_t id);
 
+  Document
+  getAccountVariable(const checksum256 & account_hash);
+
+  bool
+  hasAssociatedComponents(const checksum256 & account_hash);
+
   void
   changeAcctBalanceRecursively(
     const checksum256 & account, 
@@ -308,10 +271,6 @@ CONTRACT accounting : public contract {
     const bool onlyGlobal
   );
 
-  /**
-  * @brief Creates a parent --> child & parent <-- child
-  * edges relationship between accounts 
-  */
   void 
   parent(name creator, 
          checksum256 parent, 
