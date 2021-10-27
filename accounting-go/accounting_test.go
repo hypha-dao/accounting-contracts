@@ -18,11 +18,6 @@ import (
 	"gotest.tools/assert"
 )
 
-// var env *Environment
-
-//var chainResponsePause, votingPause, periodPause time.Duration
-
-// var claimedPeriods uint64.
 
 func CreateTestLedger(env *Environment, t *testing.T) string {
 
@@ -37,7 +32,6 @@ func CreateTestLedger(env *Environment, t *testing.T) string {
 
 	assert.NilError(t, err)
 
-	//TODO: I need a way to get the hash with the content groups in go
 	docs, err := docgraph.GetDocumentsWithEdge(env.ctx, &env.api, env.Accounting, env.Root, eos.Name("ledger"))
 
 	assert.NilError(t, err)
@@ -183,6 +177,19 @@ func createTrx (trxComponents []accounting.TrxComponent, ledgerDoc *docgraph.Doc
 		genericTrxComp = strings.Replace(genericTrxComp, "component_account", trxComp.AccountHash, 1)
 		genericTrxComp = strings.Replace(genericTrxComp, "component_amount", trxComp.Amount.String(), 1)
 		genericTrxComp = strings.Replace(genericTrxComp, "component_type", trxComp.Type, 1)
+
+		if trxComp.EventHash != nil {
+			event := `,{ 
+				"label": "event",
+				"value": [
+					"checksum256",
+					"<hash>"
+			] }`
+			event = strings.Replace(event, "<hash>", trxComp.EventHash.String(), 1)
+			genericTrxComp = strings.Replace(genericTrxComp, "<event>", event, 1)
+		} else {
+			genericTrxComp = strings.Replace(genericTrxComp, "<event>", "", 1)
+		}
 
 		if i > 0 {
 			components = components + ",\n"
@@ -453,6 +460,7 @@ func TestCreateacc(t *testing.T) {
 				expensesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"DEBIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -658,21 +666,25 @@ func TestDeleteacc(t *testing.T) {
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salaryAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				developmentAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"CREDIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -810,6 +822,7 @@ func TestDeletetrx(t *testing.T) {
 				salaryAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"DEBIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -856,21 +869,25 @@ func TestUpserttrx(t *testing.T) {
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salaryAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				developmentAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"CREDIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -937,21 +954,25 @@ func TestUpserttrx(t *testing.T) {
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salaryAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				developmentAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"CREDIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -1028,36 +1049,43 @@ func TestUpserttrx(t *testing.T) {
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd3Symbol },
 				"CREDIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salaryAcc.Hash.String(), 
 				eos.Asset{ Amount: 80000, Symbol: usd3Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 20000, Symbol: usd3Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: btc8Symbol },
 				"CREDIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: btc8Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 500000, Symbol: tlos4Symbol },
 				"CREDIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 500000, Symbol: tlos4Symbol },
 				"DEBIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -1143,11 +1171,13 @@ func TestUpserttrx(t *testing.T) {
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -1187,21 +1217,25 @@ func TestUpserttrx(t *testing.T) {
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salaryAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				developmentAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"CREDIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -1250,11 +1284,13 @@ func TestUpserttrx(t *testing.T) {
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -1294,21 +1330,25 @@ func TestUpserttrx(t *testing.T) {
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"CREDIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salaryAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				developmentAcc.Hash.String(), 
 				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
 				"CREDIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -1368,6 +1408,144 @@ func TestUpserttrx(t *testing.T) {
 
 	})
 
+	t.Run("Test insert transaction with event, without approval", func(t *testing.T) {
+
+		teardownTestCase := setupTestCase(t)
+		defer teardownTestCase(t)	
+
+		env := SetupEnvironment(t)
+		trxInfo := SetupTrxTestInfo(env, t)
+
+		ledgerDoc := trxInfo.Ledger
+
+		salesAcc := trxInfo.Accounts["Sales"]
+		mktingAcc := trxInfo.Accounts["Marketing"]
+
+		usd2Symbol := trxInfo.Currencies["USD2"]
+
+		eventCgs, err := StrToContentGroups(event_1)
+		assert.NilError(t, err)
+
+		_, err = accounting.Event(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, eventCgs)
+		assert.NilError(t, err)
+
+		eventDoc, err := docgraph.GetLastDocumentOfEdge(env.ctx, &env.api, env.Accounting, eos.Name("event"))
+		assert.NilError(t, err)
+
+		trxDoc, err := createTrx([]accounting.TrxComponent{
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
+				"DEBIT",
+				eventDoc.Hash,
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
+				"CREDIT",
+				nil,
+			},
+		}, &ledgerDoc)
+		assert.NilError(t, err)
+
+		_, err = accounting.Upserttrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, make([]byte, 0), trxDoc.ContentGroups, false)
+		assert.NilError(t, err)
+
+		componentDocs, err := docgraph.GetDocumentsWithEdge(env.ctx, &env.api, env.Accounting, eventDoc, "component")
+		assert.NilError(t, err)
+
+		componentDoc := componentDocs[0]
+
+		fmt.Println(componentDoc.Hash.String())
+		cmptToString, err := accounting.PrintDocument(componentDoc)
+		fmt.Println(cmptToString)
+
+		eventDoc2s, err := docgraph.GetDocumentsWithEdge(env.ctx, &env.api, env.Accounting, componentDoc, "event")
+		assert.NilError(t, err)
+
+		eventDoc2 := eventDoc2s[0]
+
+		assert.Assert(t, eventDoc2.Hash.String() == eventDoc.Hash.String())
+
+	})
+
+	t.Run("Test insert transaction with event and approval", func(t *testing.T) {
+
+		teardownTestCase := setupTestCase(t)
+		defer teardownTestCase(t)	
+
+		env := SetupEnvironment(t)
+		trxInfo := SetupTrxTestInfo(env, t)
+
+		ledgerDoc := trxInfo.Ledger
+
+		eventCgs, err := StrToContentGroups(event_1)
+		assert.NilError(t, err)
+
+		_, err = accounting.Event(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, eventCgs)
+		assert.NilError(t, err)
+
+		eventDoc, err := docgraph.GetLastDocumentOfEdge(env.ctx, &env.api, env.Accounting, eos.Name("event"))
+		assert.NilError(t, err)
+
+		developmentAcc := trxInfo.Accounts["Development"]
+		salesAcc := trxInfo.Accounts["Sales"]
+		mktingAcc := trxInfo.Accounts["Marketing"]
+		salaryAcc := trxInfo.Accounts["Salary"]
+
+		usd2Symbol := trxInfo.Currencies["USD2"]
+		husd2Symbol := trxInfo.Currencies["HUSD2"]
+
+		trxDoc, err := createTrx([]accounting.TrxComponent{
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
+				"DEBIT",
+				nil,
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
+				"CREDIT",
+				eventDoc.Hash,
+			},
+			accounting.TrxComponent{
+				salaryAcc.Hash.String(), 
+				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
+				"DEBIT",
+				nil,
+			},
+			accounting.TrxComponent{
+				developmentAcc.Hash.String(), 
+				eos.Asset{ Amount: 50000, Symbol: husd2Symbol},
+				"CREDIT",
+				nil,
+			},
+		}, &ledgerDoc)
+
+		assert.NilError(t, err)
+
+		_, err = accounting.Upserttrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, make([]byte, 0), trxDoc.ContentGroups, true)
+		assert.NilError(t, err)
+
+		componentDocs, err := docgraph.GetDocumentsWithEdge(env.ctx, &env.api, env.Accounting, eventDoc, "component")
+		assert.NilError(t, err)
+
+		componentDoc := componentDocs[0]
+
+		fmt.Println(componentDoc.Hash.String())
+		cmptToString, err := accounting.PrintDocument(componentDoc)
+		fmt.Println(cmptToString)
+
+		eventDoc2s, err := docgraph.GetDocumentsWithEdge(env.ctx, &env.api, env.Accounting, componentDoc, "event")
+		assert.NilError(t, err)
+
+		eventDoc2 := eventDoc2s[0]
+
+		assert.Assert(t, eventDoc2.Hash.String() == eventDoc.Hash.String())
+
+	})
+
 	t.Run("Test failures", func(t *testing.T) {
 
 		teardownTestCase := setupTestCase(t)
@@ -1389,11 +1567,13 @@ func TestUpserttrx(t *testing.T) {
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 10000000, Symbol: usd3Symbol },
 				"CREDIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -1411,11 +1591,13 @@ func TestUpserttrx(t *testing.T) {
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd3Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 100000, Symbol: usd3Symbol },
 				"CREDIT",
+				nil,
 			},
 		}, &ledgerDoc)
 
@@ -1432,11 +1614,13 @@ func TestUpserttrx(t *testing.T) {
 				mktingAcc.Hash.String(), 
 				eos.Asset{ Amount: 10000, Symbol: usd3Symbol },
 				"DEBIT",
+				nil,
 			},
 			accounting.TrxComponent{
 				salesAcc.Hash.String(), 
 				eos.Asset{ Amount: 10000, Symbol: usd3Symbol },
 				"CREDIT",
+				nil,
 			},
 		}, &ledgerDoc)
 

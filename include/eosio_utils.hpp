@@ -32,11 +32,15 @@ calculateRate(eosio::asset from, eosio::asset to)
 
 //Helper method to clean all the elements of a table
 template<class T> void
-cleanuptable(eosio::name scope)
+cleanuptable(eosio::name scope, int64_t batch_size=-1)
 {
   T table(scope, scope.value);
+
+  int64_t count = 0;
+
   for (auto it = table.begin(); it != table.end();) {
     it = table.erase(it);
+    if ((batch_size > -1) && (++count >= batch_size)) break;
   }
 }
 

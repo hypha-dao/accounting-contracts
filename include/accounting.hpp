@@ -193,6 +193,9 @@ CONTRACT accounting : public contract {
   ACTION
   clean(ContentGroups& tables);
 
+  ACTION
+  reset(int64_t batch_size);
+
 
   static const Document& 
   getRoot();

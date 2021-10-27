@@ -96,6 +96,7 @@ type TrxComponent struct {
 	AccountHash string `json:"account"`
 	Amount eos.Asset `json:"amount"`
 	Type string `json:"type"`
+	EventHash eos.Checksum256 `json:"event_hash"`
 }
 
 type TrxTestInfo struct {

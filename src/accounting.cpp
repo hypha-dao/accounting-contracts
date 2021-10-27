@@ -698,6 +698,17 @@ accounting::clean(ContentGroups& tables)
   }
 }
 
+ACTION
+accounting::reset (int64_t batch_size)
+{
+  TRACE_FUNCTION()
+
+  require_auth(get_self());
+
+  util::cleanuptable<Document::document_table>(get_self(), batch_size);
+  util::cleanuptable<Edge::edge_table>(get_self(), batch_size);
+}
+
 void
 accounting::requireTrusted(name account)
 {

@@ -127,6 +127,7 @@ const generic_trx_component = `
 				"component_type"
 		]
 	}
+	<event>
 ]
 `
 

@@ -37,3 +37,14 @@ TRUSTED ACCOUNT
 
 ./cleos -u https://testnet.telos.caleos.io push action gh.hypha addtrustacnt '["danipootucm1"]' -p gh.hypha@active
 
+
+
+===============================================================
+
+RESET CONTRACT
+
+./cleos -u https://testnet.telos.caleos.io push action gh.hypha reset '[100]' -p gh.hypha@active
+
+./cleos -u https://testnet.telos.caleos.io push action gh.hypha createroot '[""]' -p gh.hypha@active
+
+
