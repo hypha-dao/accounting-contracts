@@ -10,7 +10,6 @@ import (
 	"time"
 	"strings"
 
-	// eostest "github.com/digital-scarcity/eos-go-test"
 	"github.com/eoscanada/eos-go"
 	"github.com/hypha-dao/accounting-go"
 	"github.com/hypha-dao/document-graph/docgraph"

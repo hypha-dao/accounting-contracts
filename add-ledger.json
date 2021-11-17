@@ -1,0 +1,28 @@
+{
+  "creator":"ianonsiomeja",
+  "ledger_info": [
+    [
+      {
+        "label": "content_group_label",
+        "value": [
+            "string",
+            "details"
+        ]
+      },
+      {
+        "label": "owner",
+        "value": [
+            "name",
+            "gh.hypha"
+        ]
+      },
+      {
+        "label": "name",
+        "value": [
+            "string",
+            "Chart of Accounts"
+        ]
+      }
+    ]
+  ]
+}

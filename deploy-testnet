@@ -37,6 +37,8 @@ TRUSTED ACCOUNT
 
 ./cleos -u https://testnet.telos.caleos.io push action gh.hypha addtrustacnt '["danipootucm1"]' -p gh.hypha@active
 
+./cleos -u https://testnet.telos.caleos.io push action gh.hypha addtrustacnt '["ianonsiomeja"]' -p gh.hypha@active
+
 
 
 ===============================================================
@@ -46,5 +48,89 @@ RESET CONTRACT
 ./cleos -u https://testnet.telos.caleos.io push action gh.hypha reset '[100]' -p gh.hypha@active
 
 ./cleos -u https://testnet.telos.caleos.io push action gh.hypha createroot '[""]' -p gh.hypha@active
+
+
+
+
+
+
+
+===============================================================
+
+INIT CONTRACT
+
+
+
+cleos -u https://testnet.telos.caleos.io push action gh.hypha addledger ../../../Documents/hypha/accounting-contracts/add-ledger.json -p ianonsiomeja@active
+
+cleos -u https://testnet.telos.caleos.io push action gh.hypha createacc ../../../Documents/hypha/accounting-contracts/create-account.json -p ianonsiomeja@active
+
+
+
+
+
+
+
+
+cleos -u https://testnet.telos.caleos.io push action gh.hypha upserttrx '{
+  "issuer":"ianonsiomeja",
+  "trx_hash":"",
+  "trx_info":[
+      [
+          {
+              "label": "content_group_label",
+              "value": [
+                  "string",
+                  "details"
+              ]
+          },
+          {
+              "label": "trx_date",
+              "value": [
+                  "time_point",
+                  "2021-10-28T00:00:00"
+              ]
+          },
+          {
+              "label": "trx_name",
+              "value": [
+                  "string",
+                  "transaction"
+              ]
+          },
+          {
+              "label": "trx_ledger",
+              "value": [
+                  "checksum256",
+                  "a6a054a279a84ca3f29e8829037784fecb5362566994ed711ffc229ebc8ba636"
+              ]
+          },
+          {
+              "label": "trx_memo",
+              "value": [
+                  "string",
+                  "note"
+              ]
+          }
+      ]
+  ],
+  "approve":false
+}' -p ianonsiomeja@active
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

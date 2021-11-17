@@ -810,6 +810,7 @@ accounting::getBalancesSystemGroup(int64_t id)
 
   systemGroup.push_back(Content{CREATE_DATE, current_time_point()});
   systemGroup.push_back(Content{"balance_id", id});
+  systemGroup.push_back(Content{"number_of_updates", int64_t(0)});
 
   return systemGroup;
 }
@@ -923,6 +924,10 @@ accounting::changeAcctBalanceRecursively(
   }
 
   ContentWrapper::insertOrReplace(*balancesGroup, Content{ balanceLabel, newAssetBalance });
+
+  auto [hasUpdates, numUpdatesItem] = balancesCW.get(SYSTEM, "number_of_updates");
+  int64_t numUpdates = hasUpdates == -1 ? int64_t(0) : numUpdatesItem->getAs<int64_t>();
+  ContentWrapper::insertOrReplace(*balancesGroup, Content{ std::string("number_of_updates"), numUpdates+1 });
 
   m_documentGraph.updateDocument(get_self(), balancesDoc.getHash(), balancesCW.getContentGroups());
 

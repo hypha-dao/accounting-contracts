@@ -1,0 +1,56 @@
+{
+  "creator":"ianonsiomeja",
+  "account_info": [
+			[
+					{
+							"label": "content_group_label",
+							"value": [
+									"string",
+									"details"
+							]
+					},
+					{
+							"label": "account_name",
+							"value": [
+									"string",
+									"Current Assets"
+							]
+					},
+					{
+							"label": "account_type",
+							"value": [
+									"int64",
+									1
+							]
+					},
+					{
+						"label": "account_tag_type",
+						"value": [
+								"string",
+								"DEBIT"
+						]
+					},
+					{
+						"label": "account_code",
+						"value": [
+								"string",
+								"10010000"
+						]
+					},
+          {
+						"label": "parent_account",
+						"value": [
+              "checksum256",
+              "b9b655fa58db1fefb7829f60e0540266e562ac469ee87feb124133e76c420b3e"
+            ]
+					},
+          {
+						"label": "ledger_account",
+						"value": [
+              "checksum256",
+              "b9b655fa58db1fefb7829f60e0540266e562ac469ee87feb124133e76c420b3e"
+            ]
+					}
+		 ]
+	]
+}
