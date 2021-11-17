@@ -106,13 +106,6 @@ accounting::createacc(const name & creator, ContentGroups & account_info)
         util::toLowerCase(std::move(siblingName)) != util::toLowerCase(accountName), 
         "There is already an account with name: " + accountName
       )
-
-      // checking the sibling is not enough, we need to check the whole tree
-      // std::string siblingCode = cg.getOrFail(DETAILS, ACCOUNT_CODE)->getAs<std::string>();
-      // EOS_CHECK(
-      //   siblingCode != accountCode,
-      //   "There is already an account with code: " + accountCode
-      // )
     }
   } else if (parentHash != ledger) {
     EOS_CHECK(
@@ -132,10 +125,8 @@ accounting::createacc(const name & creator, ContentGroups & account_info)
   Document account(get_self(), creator, { 
     ContentGroup {
       Content{ CONTENT_GROUP_LABEL, DETAILS },
-      Content{ ACCOUNT_TYPE, accountType },
       Content{ ACCOUNT_TAG_TYPE, accountTagType },
-      Content{ ACCOUNT_CODE, accountCode },
-      Content{ ACCOUNT_PATH, getAccountPath(accountName, parentHash, ledger) }
+      Content{ ACCOUNT_CODE, accountCode }
     },
     getSystemGroup(accountName.c_str(), "account"),
   });
@@ -763,22 +754,6 @@ accounting::getEventBucket()
 
     return edges[0].to_node;
   }  
-}
-
-std::string 
-accounting::getAccountPath(std::string account, checksum256 parent, const checksum256& ledger) 
-{
-  TRACE_FUNCTION()
-
-  if (parent == ledger) return account;
-
-  TableWrapper<document_table> docs(get_self(), get_self().value);
-  auto parentDoc = docs.get_by<"idhash"_n>(parent);
-  ContentWrapper parentCW = parentDoc.getContentWrapper();
-
-  const std::string parentPath = parentCW.getOrFail(DETAILS, ACCOUNT_PATH)->getAs<std::string>();
-
-  return util::to_str(parentPath, " > ", account);
 }
 
 ContentGroup

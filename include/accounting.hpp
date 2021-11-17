@@ -242,9 +242,6 @@ CONTRACT accounting : public contract {
   void
   createComponents(checksum256 trx_hash, class Transaction& trx, name creator);
 
-  std::string
-  getAccountPath(std::string account, checksum256 parent, const checksum256& ledger);
-
   Document
   getAccountBalances(checksum256 account);
 

@@ -175,6 +175,50 @@ const account_mkting = `
 	]
 }`
 
+const account_mkting_variant_code = `
+{
+	"content_groups": 
+	[
+			[
+					{
+							"label": "content_group_label",
+							"value": [
+									"string",
+									"details"
+							]
+					},
+					{
+							"label": "account_name",
+							"value": [
+									"string",
+									"Marketing"
+							]
+					},
+					{
+							"label": "account_type",
+							"value": [
+									"int64",
+									1
+							]
+					},
+					{
+						"label": "account_tag_type",
+						"value": [
+								"string",
+								"DEBIT"
+						]
+					},
+					{
+						"label": "account_code",
+						"value": [
+								"string",
+								"<account_code>"
+						]
+					}
+		 ]
+	]
+}`
+
 const account_development = `
 {
 	"content_groups": 

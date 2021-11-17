@@ -413,7 +413,10 @@ func TestCreateacc(t *testing.T) {
 		i := 0
 		deepParent := developmentAcc
 		for i < 10 {
-			deepAccount, err := CreateAccount(t, env, account_mkting, deepParent.Hash, ledgerDoc.Hash)
+			accountData := account_mkting_variant_code
+			accountData = strings.Replace(accountData, "<account_code>", fmt.Sprint(i), 1)
+
+			deepAccount, err := CreateAccount(t, env, accountData, deepParent.Hash, ledgerDoc.Hash)
 			assert.NilError(t, err)
 			
 			deepParent = deepAccount
@@ -426,7 +429,7 @@ func TestCreateacc(t *testing.T) {
 		fmt.Println("Deep account:")
 		fmt.Println(deepAccountToString)
 
-		assert.Assert(t, strings.Contains(deepAccountToString, "path : Expenses > Development > Marketing > Marketing > Marketing > Marketing > Marketing > Marketing > Marketing > Marketing > Marketing > Marketing"))
+		assert.Assert(t, strings.Contains(deepAccountToString, "account_code : 9"))
 
 	})
 
