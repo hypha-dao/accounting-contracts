@@ -38,47 +38,47 @@ type deleteAccount struct {
 }
 
 type transact struct {
-	Issuer          eos.AccountName         `json: "issuer"`
-	TransactionInfo []docgraph.ContentGroup `json: "trx_info"`
+	Issuer          eos.AccountName         `json:"issuer"`
+	TransactionInfo []docgraph.ContentGroup `json:"trx_info"`
 }
 
 type createTrx struct {
-	Creator          eos.AccountName         `json: "creator"`
-	TransactionInfo []docgraph.ContentGroup  `json: "trx_info"`
+	Creator          eos.AccountName         `json:"creator"`
+	TransactionInfo []docgraph.ContentGroup  `json:"trx_info"`
 }
 
 type updateTrx struct {
-	Updater          eos.AccountName 				 `json: "updater"`
-	TransactionHash eos.Checksum256  				 `json: "trx_hash"`
-	TransactionInfo []docgraph.ContentGroup  `json: "trx_info"`
+	Updater          eos.AccountName 				 `json:"updater"`
+	TransactionHash eos.Checksum256  				 `json:"trx_hash"`
+	TransactionInfo []docgraph.ContentGroup  `json:"trx_info"`
 }
 
 type balanceTrx struct {
-	Issuer          eos.AccountName 				 `json: "issuer"`
-	TransactionHash eos.Checksum256  				 `json: "trx_hash"`
+	Issuer          eos.AccountName 				 `json:"issuer"`
+	TransactionHash eos.Checksum256  				 `json:"trx_hash"`
 }
 
 type setSetting struct {
-	Setting string             `json: "setting"`
-	Value   docgraph.FlexValue `json: "value"`
+	Setting string             `json:"setting"`
+	Value   docgraph.FlexValue `json:"value"`
 }
 
 type remSetting struct {
-	Setting string `json: "setting"`
+	Setting string `json:"setting"`
 }
 
 type trustAccount struct {
-	Account eos.AccountName `json: "account`
+	Account eos.AccountName `json:"account"`
 }
 
 type addCurrency struct {
-	Issuer eos.AccountName `json: issuer`
-	Currency eos.Symbol `json: currency`
+	Issuer eos.AccountName `json:"issuer"`
+	Currency eos.Symbol `json:"currency"`
 }
 
 type remCurrency struct {
-	Authorizer eos.AccountName `json: authorizer`
-	Currency eos.Symbol `json: currency`
+	Authorizer eos.AccountName `json:"authorizer"`
+	Currency eos.Symbol `json:"currency"`
 }
 
 type cursor struct {
@@ -106,10 +106,10 @@ type TrxTestInfo struct {
 }
 
 type upsertTrx struct {
-	Issuer eos.AccountName `json:issuer`
-	TrxHash eos.Checksum256 `json:trx_hash`
-	TrxInfo []docgraph.ContentGroup `json:trx_info`
-	Approve bool `json:approve`
+	Issuer eos.AccountName `json:"issuer"`
+	TrxHash eos.Checksum256 `json:"trx_hash"`
+	TrxInfo []docgraph.ContentGroup `json:"trx_info"`
+	Approve bool `json:"approve"`
 }
 
 type ComponentNodeInfo struct {
@@ -124,9 +124,28 @@ type TrxNodeInfo struct {
 }
 
 type deleteTrx struct {
-	Deleter eos.AccountName `json:deleter`
-	TrxHash eos.Checksum256 `json:trx_hash`
+	Deleter eos.AccountName `json:"deleter"`
+	TrxHash eos.Checksum256 `json:"trx_hash"`
 }
+
+type ExRateEntry struct {
+	From	eos.SymbolCode 	`json:"from"`
+	To 		eos.SymbolCode 	`json:"to"`
+	Date	eos.TimePoint		`json:"date"`
+	Rate 	eos.Int64				`json:"exrate"`
+}
+
+type addExchRates struct {
+	ExchangeRates []ExRateEntry	`json:"exchange_rates"`
+}
+
+type ExRateRow struct {
+	Id		eos.Uint64		`json:"id"`
+	Date	eos.TimePoint	`json:"date"`
+	ToCurrency	string	`json:"to"`
+	Rate	eos.Float64		`json:"rate"`
+}
+
 
 func AddLedger(ctx context.Context, api *eos.API, contract, creator eos.AccountName, ledger []docgraph.ContentGroup) (string, error) {
 
@@ -441,6 +460,23 @@ func Event(ctx context.Context, api *eos.API, contract, issuer eos.AccountName, 
 	return eostest.ExecTrx(ctx, api, actions)
 }
 
+func AddExchRates(ctx context.Context, api *eos.API, contract eos.AccountName, exchangeRates []ExRateEntry) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("addexchrates"),
+		Authorization: []eos.PermissionLevel{
+			{Actor: contract, Permission: eos.PN("active")},
+		},
+		ActionData: eos.NewActionData(addExchRates{
+			ExchangeRates:	exchangeRates,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+
+}
+
 func GetLastCursor(ctx context.Context, api *eos.API, contract eos.AccountName) (string, error) {
 
 	var request eos.GetTableRowsRequest
@@ -707,3 +743,40 @@ func GetAllowedCurrencies (ctx context.Context, api *eos.API, contract eos.Accou
 
 	return allowedCurrencies, nil
 }
+
+
+func GetExchangeRates(ctx context.Context, api *eos.API, contract eos.AccountName, from, to string) ([]ExRateRow, error) {
+
+	toSymbolCode, _ := eos.StringToSymbolCode(to)
+
+	delimiter := eos.Uint128{
+		Lo: uint64(0),
+		Hi: uint64(toSymbolCode),
+	}
+
+	var request eos.GetTableRowsRequest
+	request.Code = string(contract)
+	request.Scope = from
+	request.Table = "exrates"
+	request.LowerBound = delimiter.String()
+	request.Limit = 10000
+	request.Index = "2"
+	request.KeyType = "i128"
+	request.JSON = true
+	response, err := api.GetTableRows(ctx, request)
+	
+	if err != nil {
+		return []ExRateRow{}, fmt.Errorf("fail to get table rows %v", err)
+	}
+
+	var rows []ExRateRow
+
+	err = response.JSONToStructs(&rows)
+	if err != nil {
+		return []ExRateRow{}, fmt.Errorf("json to structs %v", err)
+	}
+
+	return rows, nil
+
+}
+

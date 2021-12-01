@@ -642,6 +642,36 @@ accounting::clearevent(int64_t max_removable_trx)
   }
 }
 
+
+ACTION
+accounting::addexchrates(std::vector<exchange_rate_entry> exchange_rates)
+{
+  require_auth(get_self());
+
+  std::vector<uint64_t> allowed_currencies = getAllowedCurrencies();
+
+  for (auto & entry : exchange_rates)
+  {
+    // validate here that the currency exists
+    EOS_CHECK(
+      isAllowedCurrency(eosio::symbol(entry.from, 4), allowed_currencies),
+      util::to_str("from currency ", entry.from, " is not an allowed currency")
+    )
+    EOS_CHECK(
+      isAllowedCurrency(eosio::symbol(entry.to, 4), allowed_currencies),
+      util::to_str("to currency ", entry.to, " is not an allowed currency")
+    )
+
+    exchange_rates_table exrates_t(get_self(), entry.from.raw());
+    exrates_t.emplace(_self, [&](auto & item){
+      item.id = exrates_t.available_primary_key();
+      item.date = entry.date;
+      item.to = entry.to;
+      item.rate = entry.exrate / 100000000.0;
+    });
+  }
+}
+
 /**
 * Group Label: details
 * documents: int
@@ -669,10 +699,6 @@ accounting::clean(ContentGroups& tables)
 
   if (cw.getOrFail(DETAILS, "exchange_rates")->getAs<int64_t>() == 1) {
     util::cleanuptable<exchange_rates_table>(get_self()); 
-  }
-
-  if (cw.getOrFail(DETAILS, "currencies")->getAs<int64_t>() == 1) {
-    util::cleanuptable<currencies_table>(get_self()); 
   }
 
   if (cw.getOrFail(DETAILS, "cursors")->getAs<int64_t>() == 1) {

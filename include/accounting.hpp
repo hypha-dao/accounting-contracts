@@ -31,6 +31,13 @@ enum E
 };
 }
 
+struct exchange_rate_entry {
+  eosio::symbol_code from;
+  eosio::symbol_code to;
+  eosio::time_point date;
+  int64_t exrate;
+};
+
 CONTRACT accounting : public contract {
  public:
   //using contract::contract;
@@ -56,88 +63,20 @@ CONTRACT accounting : public contract {
                                    indexed_by<"bysource"_n, const_mem_fun<cursor, checksum256, &cursor::by_source>>
                                    >;
 
-  TABLE exchange_rate
-  {
+
+  TABLE exchange_rate { // scoped by symbol_code
     uint64_t id;
     time_point date;
-    symbol_code from_currency;
-    symbol_code to_currency;
-    checksum256 trx_origin;
-    float rate;
-    bool invalidated;
+    symbol_code to;
+    double rate;
 
-    EOSLIB_SERIALIZE(exchange_rate, (id)(date)(from_currency)(to_currency)(trx_origin)(rate)(invalidated))
-
-    uint64_t primary_key() const { return id; }
-    checksum256 by_trx_origin() const { return trx_origin; }
+    uint64_t primary_key () const { return id; }
+    uint128_t by_to_date () const { return (uint128_t(to.raw()) << 64) + uint128_t(date.time_since_epoch().count()); }
   };
 
   using exchange_rates_table = multi_index<"exrates"_n, exchange_rate,
-                                           indexed_by<name("trxorigin"), const_mem_fun<exchange_rate, checksum256, &exchange_rate::by_trx_origin>>>;
+                                          indexed_by<name("bytodate"), const_mem_fun<exchange_rate, uint128_t, &exchange_rate::by_to_date>>>;
 
-  TABLE currency
-  {
-    symbol_code code;
-    uint64_t primary_key() const { return code.raw(); }
-  };
-
-  using currencies_table = multi_index<"currencies"_n, currency>;
-
-  ACTION
-  fixcmp(std::vector<checksum256> documents)
-  {
-    require_auth(get_self());
-    const size_t maxDocs = 10;
-
-    for (size_t i = 0; i < std::min(maxDocs, documents.size()); ++i) {
-      Document docs(get_self(), documents[i]);
-      auto cw = docs.getContentWrapper();
-      
-      auto type = cw.getOrFail(SYSTEM, TYPE_LABEL)->getAs<string>();
-
-      EOS_CHECK(
-        type == "component",
-        util::to_str("Wrong document type: ", type)
-      )
-
-      bool hasNewContents = false;
-
-      auto details = cw.getGroupOrFail(DETAILS);
-
-      if (!cw.exists(DETAILS, COMPONENT_FROM)) {
-        cw.insertOrReplace(*details, Content{COMPONENT_FROM, ""});
-        hasNewContents = true;
-      }
-
-      if (!cw.exists(DETAILS, COMPONENT_TO)) {
-        cw.insertOrReplace(*details, Content{COMPONENT_TO, ""});
-        hasNewContents = true;
-      }
-
-      if (!cw.exists(DETAILS, COMPONENT_TAG_TYPE)) {
-        cw.insertOrReplace(*details, Content{COMPONENT_TAG_TYPE, "DEBIT"});
-        hasNewContents = true;
-      }
-
-      if (hasNewContents) {
-        m_documentGraph.updateDocument(
-          get_self(),
-          docs.getHash(),
-          cw.getContentGroups()
-        );
-      }
-    }
-
-    if (documents.size() > maxDocs) {
-      std::vector<checksum256> nextBatch(documents.begin() + maxDocs, documents.end());
-      eosio::action(
-        eosio::permission_level{get_self(), "active"_n},
-        get_self(),
-        "fixcmp"_n,
-        std::make_tuple(nextBatch)
-      ).send();
-    }
-  }
 
   ACTION
   createroot(std::string notes);
@@ -189,6 +128,9 @@ CONTRACT accounting : public contract {
 
   ACTION
   clearevent(int64_t max_removable_trx);
+
+  ACTION
+  addexchrates(std::vector<exchange_rate_entry> exchange_rates);
 
   ACTION
   clean(ContentGroups& tables);
