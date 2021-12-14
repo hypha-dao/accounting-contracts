@@ -411,7 +411,6 @@ accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups 
     }
 
     ContentWrapper::insertOrReplace(detailsGroup, Content{ "currency_conversion", int64_t(1) });
-    ContentWrapper::insertOrReplace(detailsGroup, Content{ "conversion_precision", int64_t(8) });
 
     auto from = convertedComponents[0];
     auto to = convertedComponents[1];
@@ -423,12 +422,12 @@ accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups 
 
     ContentWrapper::insertOrReplace(detailsGroup, Content{ 
       util::to_str(from.first, "/", to.first), 
-      std::to_string(int64_t((from.second / to.second) * 100000000))
+      std::to_string(from.second / to.second)
     });
 
     ContentWrapper::insertOrReplace(detailsGroup, Content{ 
       util::to_str(to.first, "/", from.first), 
-      std::to_string(int64_t((to.second / from.second) * 100000000))
+      std::to_string(to.second / from.second)
     });
   }
 
