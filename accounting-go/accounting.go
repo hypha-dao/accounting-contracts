@@ -254,6 +254,26 @@ func Upserttrx(ctx context.Context, api *eos.API, contract, issuer eos.AccountNa
 
 }
 
+func Crryconvtrx(ctx context.Context, api *eos.API, contract, issuer eos.AccountName, trxHash eos.Checksum256, trxInfo []docgraph.ContentGroup, approve bool) (string, error) {
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name:    eos.ActN("crryconvtrx"),
+		Authorization: []eos.PermissionLevel{
+			{ Actor: issuer, Permission: eos.PN("active") },
+		},
+		ActionData: eos.NewActionData(upsertTrx{
+			Issuer: issuer,
+			TrxHash: trxHash,
+			TrxInfo: trxInfo,
+			Approve: approve,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+
+}
+
 func Deletetrx(ctx context.Context, api *eos.API, contract, deleter eos.AccountName, trxHash eos.Checksum256) (string, error) {
 
 	actions := []*eos.Action{{

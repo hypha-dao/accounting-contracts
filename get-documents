@@ -1,0 +1,1 @@
+./cleos get table accounting accounting documents --limit 1000 > ~/Documents/hypha/accounting-contracts/documents

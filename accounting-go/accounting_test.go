@@ -1660,6 +1660,417 @@ func TestUpserttrx(t *testing.T) {
 		assert.ErrorContains(t, err, "Transaction must contain at least 1 component")
 
 	})
+}
+
+func TestCrryconvtrx(t *testing.T) {
+
+	t.Run("An authorized account can save a transaction for balancing two currencies", func(t *testing.T) {
+
+		// Arrange
+		teardownTestCase := setupTestCase(t)
+		defer teardownTestCase(t)	
+	
+		env := SetupEnvironment(t)
+		trxInfo := SetupTrxTestInfo(env, t)
+
+		ledgerDoc := trxInfo.Ledger
+
+		salesAcc := trxInfo.Accounts["Sales"]
+		mktingAcc := trxInfo.Accounts["Marketing"]
+
+		usd2Symbol := trxInfo.Currencies["USD2"]
+		husd2Symbol := trxInfo.Currencies["HUSD2"]
+
+		trxDoc, err := createTrx([]accounting.TrxComponent{
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 500000, Symbol: usd2Symbol },
+				"DEBIT",
+				nil,
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: husd2Symbol },
+				"CREDIT",
+				nil,
+			},
+		}, &ledgerDoc)
+
+		assert.NilError(t, err)
+
+		
+		// Act
+		_, err = accounting.Crryconvtrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, make([]byte, 0), trxDoc.ContentGroups, false)
+		assert.NilError(t, err)
+
+
+		// Assert
+		trxFromChainDoc, err := docgraph.GetLastDocumentOfEdge(env.ctx, &env.api, env.Accounting, eos.Name("transaction"))
+		assert.NilError(t, err)
+
+		trxNodeInfo, err := accounting.GetTrxNodeInfo(env.ctx, &env.api, env.Accounting, trxFromChainDoc)
+		assert.NilError(t, err)
+
+		trxFields := make(map[string]string)
+		edgesLength := make(map[string]int)
+
+		trxFields["trx_memo"] = "Test transaction"
+		trxFields["trx_name"] = "transaction name"
+		trxFields["id"] = "1"
+
+		edgesLength["from"] = 3
+		edgesLength["to"] = 3
+
+		assert.Assert(t, CheckTransaction(trxNodeInfo, trxFields, edgesLength))	
+
+	})
+
+	t.Run("An authorized account can approve a transaction for balancing two currencies", func(t *testing.T) {
+
+		// Arrange
+		teardownTestCase := setupTestCase(t)
+		defer teardownTestCase(t)	
+	
+		env := SetupEnvironment(t)
+		trxInfo := SetupTrxTestInfo(env, t)
+
+		ledgerDoc := trxInfo.Ledger
+
+		salesAcc := trxInfo.Accounts["Sales"]
+		mktingAcc := trxInfo.Accounts["Marketing"]
+
+		usd2Symbol := trxInfo.Currencies["USD2"]
+		btc3Symbol, _ := eos.StringToSymbol("3,BTC")
+
+		_, err := accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "3,BTC")
+		assert.NilError(t, err)
+
+		trxDoc, err := createTrx([]accounting.TrxComponent{
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 500000, Symbol: usd2Symbol },
+				"DEBIT",
+				nil,
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: btc3Symbol },
+				"CREDIT",
+				nil,
+			},
+		}, &ledgerDoc)
+
+		assert.NilError(t, err)
+
+		
+		// Act
+		_, err = accounting.Crryconvtrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, make([]byte, 0), trxDoc.ContentGroups, true)
+		assert.NilError(t, err)
+
+
+		// Assert
+		trxFromChainDoc, err := docgraph.GetLastDocumentOfEdge(env.ctx, &env.api, env.Accounting, eos.Name("transaction"))
+		assert.NilError(t, err)
+
+		trxNodeInfo, err := accounting.GetTrxNodeInfo(env.ctx, &env.api, env.Accounting, trxFromChainDoc)
+		assert.NilError(t, err)
+
+		trxFields := make(map[string]string)
+		edgesLength := make(map[string]int)
+
+		trxFields["trx_memo"] = "Test transaction"
+		trxFields["trx_name"] = "transaction name"
+		trxFields["id"] = "1"
+
+		edgesLength["from"] = 3
+		edgesLength["to"] = 3
+
+		assert.Assert(t, CheckTransaction(trxNodeInfo, trxFields, edgesLength))
+
+		ledgerToString, err := accounting.PrintLedger(env.ctx, &env.api, env.Accounting, ledgerDoc)	
+		assert.NilError(t, err)
+		
+		fmt.Println("---------------------------------")
+		fmt.Println(ledgerToString)
+
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Marketing", []string{
+			"[global_USD:5000.00 USD]","[account_USD:5000.00 USD]",
+		}))
+
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Sales", []string{
+			"[global_BTC:-100.000 BTC]","[account_BTC:-100.000 BTC]",
+		}))
+
+	})
+
+	t.Run("An authorized account can update a non approved transaction", func(t *testing.T) {
+
+		// Arrange
+		teardownTestCase := setupTestCase(t)
+		defer teardownTestCase(t)	
+	
+		env := SetupEnvironment(t)
+		trxInfo := SetupTrxTestInfo(env, t)
+
+		ledgerDoc := trxInfo.Ledger
+
+		salesAcc := trxInfo.Accounts["Sales"]
+		mktingAcc := trxInfo.Accounts["Marketing"]
+
+		usd2Symbol := trxInfo.Currencies["USD2"]
+		husd2Symbol := trxInfo.Currencies["HUSD2"]
+
+		trxDoc, err := createTrx([]accounting.TrxComponent{
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 500000, Symbol: usd2Symbol },
+				"DEBIT",
+				nil,
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: husd2Symbol },
+				"CREDIT",
+				nil,
+			},
+		}, &ledgerDoc)
+
+		assert.NilError(t, err)
+
+		_, err = accounting.Crryconvtrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, make([]byte, 0), trxDoc.ContentGroups, false)
+		assert.NilError(t, err)
+
+		trxFromChainDoc, err := docgraph.GetLastDocumentOfEdge(env.ctx, &env.api, env.Accounting, eos.Name("transaction"))
+		assert.NilError(t, err)
+
+
+		trxDoc, err = createTrx([]accounting.TrxComponent{
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 200000, Symbol: usd2Symbol },
+				"DEBIT",
+				nil,
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: husd2Symbol },
+				"CREDIT",
+				nil,
+			},
+		}, &ledgerDoc)
+
+		
+		// Act
+		_, err = accounting.Crryconvtrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, trxFromChainDoc.Hash, trxDoc.ContentGroups, false)
+		assert.NilError(t, err)
+
+
+		// Assert
+		trxFromChainDoc, err = docgraph.GetLastDocumentOfEdge(env.ctx, &env.api, env.Accounting, eos.Name("transaction"))
+		assert.NilError(t, err)
+
+		trxNodeInfo, err := accounting.GetTrxNodeInfo(env.ctx, &env.api, env.Accounting, trxFromChainDoc)
+		assert.NilError(t, err)
+
+		trxFields := make(map[string]string)
+		edgesLength := make(map[string]int)
+
+		trxFields["trx_memo"] = "Test transaction"
+		trxFields["trx_name"] = "transaction name"
+		trxFields["id"] = "1"
+
+		edgesLength["from"] = 3
+		edgesLength["to"] = 3
+
+		assert.Assert(t, CheckTransaction(trxNodeInfo, trxFields, edgesLength))	
+
+	})
+
+	t.Run("An authorized account can update and approve a transaction", func(t *testing.T) {
+
+		// Arrange
+		teardownTestCase := setupTestCase(t)
+		defer teardownTestCase(t)	
+	
+		env := SetupEnvironment(t)
+		trxInfo := SetupTrxTestInfo(env, t)
+
+		ledgerDoc := trxInfo.Ledger
+
+		salesAcc := trxInfo.Accounts["Sales"]
+		mktingAcc := trxInfo.Accounts["Marketing"]
+
+		usd2Symbol := trxInfo.Currencies["USD2"]
+		husd2Symbol := trxInfo.Currencies["HUSD2"]
+
+		trxDoc, err := createTrx([]accounting.TrxComponent{
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 500000, Symbol: usd2Symbol },
+				"DEBIT",
+				nil,
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: husd2Symbol },
+				"CREDIT",
+				nil,
+			},
+		}, &ledgerDoc)
+
+		assert.NilError(t, err)
+
+		_, err = accounting.Crryconvtrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, make([]byte, 0), trxDoc.ContentGroups, false)
+		assert.NilError(t, err)
+
+		trxFromChainDoc, err := docgraph.GetLastDocumentOfEdge(env.ctx, &env.api, env.Accounting, eos.Name("transaction"))
+		assert.NilError(t, err)
+
+
+		trxDoc, err = createTrx([]accounting.TrxComponent{
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 200000, Symbol: usd2Symbol },
+				"DEBIT",
+				nil,
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: husd2Symbol },
+				"CREDIT",
+				nil,
+			},
+		}, &ledgerDoc)
+
+		
+		// Act
+		_, err = accounting.Crryconvtrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, trxFromChainDoc.Hash, trxDoc.ContentGroups, true)
+		assert.NilError(t, err)
+
+
+		// Assert
+		trxFromChainDoc, err = docgraph.GetLastDocumentOfEdge(env.ctx, &env.api, env.Accounting, eos.Name("transaction"))
+		assert.NilError(t, err)
+
+		trxNodeInfo, err := accounting.GetTrxNodeInfo(env.ctx, &env.api, env.Accounting, trxFromChainDoc)
+		assert.NilError(t, err)
+
+		trxFields := make(map[string]string)
+		edgesLength := make(map[string]int)
+
+		trxFields["trx_memo"] = "Test transaction"
+		trxFields["trx_name"] = "transaction name"
+		trxFields["id"] = "1"
+
+		edgesLength["from"] = 3
+		edgesLength["to"] = 3
+
+		assert.Assert(t, CheckTransaction(trxNodeInfo, trxFields, edgesLength))	
+
+		ledgerToString, err := accounting.PrintLedger(env.ctx, &env.api, env.Accounting, ledgerDoc)	
+		assert.NilError(t, err)
+		
+		fmt.Println("---------------------------------")
+		fmt.Println(ledgerToString)
+
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Marketing", []string{
+			"[global_USD:2000.00 USD]","[account_USD:2000.00 USD]",
+		}))
+
+		assert.Assert(t, CheckAccountBalances(ledgerToString, "Sales", []string{
+			"[global_HUSD:-1000.00 HUSD]","[account_HUSD:-1000.00 HUSD]",
+		}))
+
+	})
+
+	t.Run("If the transaction has more than 2 currencies, the transaction is invalid", func(t *testing.T) {
+
+		// Arrange
+		teardownTestCase := setupTestCase(t)
+		defer teardownTestCase(t)	
+	
+		env := SetupEnvironment(t)
+		trxInfo := SetupTrxTestInfo(env, t)
+
+		ledgerDoc := trxInfo.Ledger
+
+		salesAcc := trxInfo.Accounts["Sales"]
+		mktingAcc := trxInfo.Accounts["Marketing"]
+
+		usd2Symbol := trxInfo.Currencies["USD2"]
+		husd2Symbol := trxInfo.Currencies["HUSD2"]
+
+		trxDoc, err := createTrx([]accounting.TrxComponent{
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 500000, Symbol: usd2Symbol },
+				"DEBIT",
+				nil,
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: husd2Symbol },
+				"CREDIT",
+				nil,
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: husd2Symbol },
+				"CREDIT",
+				nil,
+			},
+		}, &ledgerDoc)
+
+		assert.NilError(t, err)
+
+		// Act
+		_, err = accounting.Crryconvtrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, make([]byte, 0), trxDoc.ContentGroups, false)
+
+		// Assert
+		assert.ErrorContains(t, err, "a currency conversion must have 2 components")
+
+	})
+
+	t.Run("If the 2 currencies are the same, the transaction is invalid", func(t *testing.T) {
+
+		// Arrange
+		teardownTestCase := setupTestCase(t)
+		defer teardownTestCase(t)	
+	
+		env := SetupEnvironment(t)
+		trxInfo := SetupTrxTestInfo(env, t)
+
+		ledgerDoc := trxInfo.Ledger
+
+		salesAcc := trxInfo.Accounts["Sales"]
+		mktingAcc := trxInfo.Accounts["Marketing"]
+
+		usd2Symbol := trxInfo.Currencies["USD2"]
+
+		trxDoc, err := createTrx([]accounting.TrxComponent{
+			accounting.TrxComponent{
+				mktingAcc.Hash.String(), 
+				eos.Asset{ Amount: 500000, Symbol: usd2Symbol },
+				"DEBIT",
+				nil,
+			},
+			accounting.TrxComponent{
+				salesAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
+				"CREDIT",
+				nil,
+			},
+		}, &ledgerDoc)
+
+		assert.NilError(t, err)
+
+		// Act
+		_, err = accounting.Crryconvtrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, make([]byte, 0), trxDoc.ContentGroups, false)
+
+		// Assert
+		assert.ErrorContains(t, err, "a currency conversion must use 2 different currencies, provided only USD")
+
+	})
 
 }
 

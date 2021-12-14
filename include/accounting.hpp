@@ -13,6 +13,7 @@
 #include <constants.hpp>
 #include "eosio_utils.hpp"
 #include "math_utils.hpp"
+#include "transaction.hpp"
 
 namespace hypha {
 
@@ -97,6 +98,9 @@ CONTRACT accounting : public contract {
   upserttrx(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve);
 
   ACTION
+  crryconvtrx(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve);
+
+  ACTION
   deletetrx(const name & deleter, const checksum256 & trx_hash);
 
   ACTION
@@ -157,8 +161,14 @@ CONTRACT accounting : public contract {
   void
   requireTrusted(name account);
 
+  void 
+  upsertTransaction(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve,const name & type);
+
   void
-  createTransaction(const name & issuer, int64_t trxId, ContentGroups & trx_info, bool approve);
+  saveComponents(const name & issuer, const checksum256 & trx_hash, const Transaction & trx);
+
+  void
+  createTransaction(const name & issuer, int64_t trxId, ContentGroups & trx_info, bool approve, const name & type);
 
   void
   deleteTransaction(const checksum256 & trx_hash);

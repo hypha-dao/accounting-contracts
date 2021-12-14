@@ -38,7 +38,7 @@
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:45.000",
+      "created_date": "2021-12-14T23:17:50.500",
       "contract": "accounting"
     },{
       "id": 4,
@@ -85,11 +85,11 @@
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:45.000",
+      "created_date": "2021-12-14T23:17:50.500",
       "contract": "accounting"
     },{
       "id": 5,
-      "hash": "ee43b658e3aee2d7abee1ae5744721e6d3f856cf5026f28af52eab2ed88562b0",
+      "hash": "688274a39e016e90d8e3dcef44f916c227175b925b5a650f895eb756013027cd",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
@@ -101,7 +101,7 @@
             "label": "create_date",
             "value": [
               "time_point",
-              "2021-10-26T00:47:45.000"
+              "2021-12-14T23:17:50.500"
             ]
           }
         ],[{
@@ -126,23 +126,17 @@
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:45.000",
+      "created_date": "2021-12-14T23:17:50.500",
       "contract": "accounting"
     },{
       "id": 6,
-      "hash": "58cffa0f2ed137935d31705bbe47dc323d388358f59431f0a95fc3a6f73f8812",
+      "hash": "6e0e454555c5cc4a75d22ea161508203eece78ead75a3cc2a0ed4af6e1e7957e",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
             "value": [
               "string",
               "details"
-            ]
-          },{
-            "label": "account_type",
-            "value": [
-              "int64",
-              1
             ]
           },{
             "label": "account_tag_type",
@@ -156,12 +150,6 @@
               "string",
               "000114"
             ]
-          },{
-            "label": "path",
-            "value": [
-              "string",
-              "Expenses"
-            ]
           }
         ],[{
             "label": "content_group_label",
@@ -185,70 +173,17 @@
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:46.500",
-      "contract": "accounting"
-    },{
-      "id": 9,
-      "hash": "2696a398512a20fc6f114dd24247c56b05bca32e4d86bbf57225d0642cc3e7ed",
-      "creator": "accounting",
-      "content_groups": [[{
-            "label": "content_group_label",
-            "value": [
-              "string",
-              "balances"
-            ]
-          }
-        ],[{
-            "label": "content_group_label",
-            "value": [
-              "string",
-              "system"
-            ]
-          },{
-            "label": "node_label",
-            "value": [
-              "string",
-              "balances"
-            ]
-          },{
-            "label": "type",
-            "value": [
-              "string",
-              "balances"
-            ]
-          },{
-            "label": "create_date",
-            "value": [
-              "time_point",
-              "2021-10-26T00:47:46.500"
-            ]
-          },{
-            "label": "balance_id",
-            "value": [
-              "int64",
-              0
-            ]
-          }
-        ]
-      ],
-      "certificates": [],
-      "created_date": "2021-10-26T00:47:46.500",
+      "created_date": "2021-12-14T23:17:52.000",
       "contract": "accounting"
     },{
       "id": 10,
-      "hash": "60f4444390f4b7ec0f8270d426ec665065cbc675991eee88a52fe06da0d33980",
+      "hash": "db7b7663930bcff87b7b0a1113138b05c1f41593fde3389cee3a06be9f4c309c",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
             "value": [
               "string",
               "details"
-            ]
-          },{
-            "label": "account_type",
-            "value": [
-              "int64",
-              1
             ]
           },{
             "label": "account_tag_type",
@@ -262,12 +197,6 @@
               "string",
               "000113"
             ]
-          },{
-            "label": "path",
-            "value": [
-              "string",
-              "Income"
-            ]
           }
         ],[{
             "label": "content_group_label",
@@ -291,58 +220,11 @@
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:47.500",
-      "contract": "accounting"
-    },{
-      "id": 13,
-      "hash": "71d7390ad69ab08ac33fa50d83dd3c1ed4f93343db1a40bcec9f86d8c7a00365",
-      "creator": "accounting",
-      "content_groups": [[{
-            "label": "content_group_label",
-            "value": [
-              "string",
-              "balances"
-            ]
-          }
-        ],[{
-            "label": "content_group_label",
-            "value": [
-              "string",
-              "system"
-            ]
-          },{
-            "label": "node_label",
-            "value": [
-              "string",
-              "balances"
-            ]
-          },{
-            "label": "type",
-            "value": [
-              "string",
-              "balances"
-            ]
-          },{
-            "label": "create_date",
-            "value": [
-              "time_point",
-              "2021-10-26T00:47:47.500"
-            ]
-          },{
-            "label": "balance_id",
-            "value": [
-              "int64",
-              1
-            ]
-          }
-        ]
-      ],
-      "certificates": [],
-      "created_date": "2021-10-26T00:47:47.500",
+      "created_date": "2021-12-14T23:17:53.000",
       "contract": "accounting"
     },{
       "id": 14,
-      "hash": "5a7c1cbd407e2c22d0bf3ebc1f04006a1f64a412624ecd7559d4a584d3cfc165",
+      "hash": "8dfb492242e06414449bbd786be4975d76844277513082386f7063aa66b58d10",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
@@ -385,29 +267,23 @@
             "label": "account_fixed",
             "value": [
               "checksum256",
-              "58cffa0f2ed137935d31705bbe47dc323d388358f59431f0a95fc3a6f73f8812"
+              "6e0e454555c5cc4a75d22ea161508203eece78ead75a3cc2a0ed4af6e1e7957e"
             ]
           }
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:48.500",
+      "created_date": "2021-12-14T23:17:54.000",
       "contract": "accounting"
     },{
       "id": 15,
-      "hash": "8aa86a674f7315a590b59ff140f159318c777ef91a5de82a83f9f87e2f93514d",
+      "hash": "17e8e5444d46c1323083d7808329e76bea66eaadeea432368827bd504fb0968b",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
             "value": [
               "string",
               "details"
-            ]
-          },{
-            "label": "account_type",
-            "value": [
-              "int64",
-              1
             ]
           },{
             "label": "account_tag_type",
@@ -421,12 +297,6 @@
               "string",
               "000111"
             ]
-          },{
-            "label": "path",
-            "value": [
-              "string",
-              "Expenses > Marketing"
-            ]
           }
         ],[{
             "label": "content_group_label",
@@ -450,11 +320,11 @@
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:48.500",
+      "created_date": "2021-12-14T23:17:54.000",
       "contract": "accounting"
     },{
       "id": 16,
-      "hash": "546c80e16f5cc78592f422d8236e4618f9424bd3d5a1eab88184f4ec28abb945",
+      "hash": "524286ab59a589ecfd7e5e13db39e3ddf3fbffb45f4b511a3503e51d5295b3e0",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
@@ -497,17 +367,117 @@
             "label": "account_fixed",
             "value": [
               "checksum256",
-              "8aa86a674f7315a590b59ff140f159318c777ef91a5de82a83f9f87e2f93514d"
+              "17e8e5444d46c1323083d7808329e76bea66eaadeea432368827bd504fb0968b"
             ]
           }
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:48.500",
+      "created_date": "2021-12-14T23:17:54.000",
       "contract": "accounting"
     },{
-      "id": 18,
-      "hash": "1357047cfcf2bb9a0d10aeb3bb32f2c16f34659477efaaf03174b55a9bda8f4e",
+      "id": 19,
+      "hash": "5a7d2197cd8d4b06182a3644fa2d89385d718599a67afaab52fcc5ebfa2c9f08",
+      "creator": "accounting",
+      "content_groups": [[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "details"
+            ]
+          },{
+            "label": "account_tag_type",
+            "value": [
+              "string",
+              "DEBIT"
+            ]
+          },{
+            "label": "account_code",
+            "value": [
+              "string",
+              "000122"
+            ]
+          }
+        ],[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "system"
+            ]
+          },{
+            "label": "node_label",
+            "value": [
+              "string",
+              "Development"
+            ]
+          },{
+            "label": "type",
+            "value": [
+              "string",
+              "account"
+            ]
+          }
+        ]
+      ],
+      "certificates": [],
+      "created_date": "2021-12-14T23:17:55.000",
+      "contract": "accounting"
+    },{
+      "id": 20,
+      "hash": "6b44fec1c30bbd085ec9627edee1e042ed41f4397ef089d8b8d02fbde6db2a73",
+      "creator": "accounting",
+      "content_groups": [[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "details"
+            ]
+          },{
+            "label": "account_name",
+            "value": [
+              "string",
+              "Development"
+            ]
+          },{
+            "label": "is_leaf",
+            "value": [
+              "string",
+              "true"
+            ]
+          }
+        ],[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "system"
+            ]
+          },{
+            "label": "node_label",
+            "value": [
+              "string",
+              "Development"
+            ]
+          },{
+            "label": "type",
+            "value": [
+              "string",
+              "account_v"
+            ]
+          },{
+            "label": "account_fixed",
+            "value": [
+              "checksum256",
+              "5a7d2197cd8d4b06182a3644fa2d89385d718599a67afaab52fcc5ebfa2c9f08"
+            ]
+          }
+        ]
+      ],
+      "certificates": [],
+      "created_date": "2021-12-14T23:17:55.000",
+      "contract": "accounting"
+    },{
+      "id": 22,
+      "hash": "2bae4b3d84b089b45f80f600b4147bdf7814621c6c3e5b2c50856f19462a58e5",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
@@ -538,23 +508,29 @@
             "label": "create_date",
             "value": [
               "time_point",
-              "2021-10-26T00:47:48.500"
+              "2021-12-14T23:17:55.000"
             ]
           },{
             "label": "balance_id",
             "value": [
               "int64",
-              2
+              3
+            ]
+          },{
+            "label": "number_of_updates",
+            "value": [
+              "int64",
+              0
             ]
           }
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:48.500",
+      "created_date": "2021-12-14T23:17:55.000",
       "contract": "accounting"
     },{
       "id": 23,
-      "hash": "e155e89e04901c993019fcb1133d6ea47c33de0348271af2c6295f7e17c8d3e0",
+      "hash": "ac8d8d8c1ec48cf4408f22549a542833bcb24f2d9a3122a1d3c39c05f5285f8f",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
@@ -597,29 +573,23 @@
             "label": "account_fixed",
             "value": [
               "checksum256",
-              "60f4444390f4b7ec0f8270d426ec665065cbc675991eee88a52fe06da0d33980"
+              "db7b7663930bcff87b7b0a1113138b05c1f41593fde3389cee3a06be9f4c309c"
             ]
           }
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:51.000",
+      "created_date": "2021-12-14T23:17:56.500",
       "contract": "accounting"
     },{
       "id": 24,
-      "hash": "f08efe062bf2d0f37cb31d7b90b9099d94591eadb97162537013d5bd8e983ecc",
+      "hash": "ff60e3cc324f1344243ba03b8d1a2f523971e320a59e3b2e889e4d7c8c903e21",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
             "value": [
               "string",
               "details"
-            ]
-          },{
-            "label": "account_type",
-            "value": [
-              "int64",
-              1
             ]
           },{
             "label": "account_tag_type",
@@ -633,12 +603,6 @@
               "string",
               "000115"
             ]
-          },{
-            "label": "path",
-            "value": [
-              "string",
-              "Income > Salary"
-            ]
           }
         ],[{
             "label": "content_group_label",
@@ -662,11 +626,11 @@
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:51.000",
+      "created_date": "2021-12-14T23:17:56.500",
       "contract": "accounting"
     },{
       "id": 25,
-      "hash": "6606f5205d0feb93e90b36a4e805d6cbd8a16090e2c51e015c0bf58012c179d8",
+      "hash": "8827f11689bd9089de3703d6fc83216cf3510329fe04a35c2dff86b783fe3333",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
@@ -709,17 +673,17 @@
             "label": "account_fixed",
             "value": [
               "checksum256",
-              "f08efe062bf2d0f37cb31d7b90b9099d94591eadb97162537013d5bd8e983ecc"
+              "ff60e3cc324f1344243ba03b8d1a2f523971e320a59e3b2e889e4d7c8c903e21"
             ]
           }
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:51.000",
+      "created_date": "2021-12-14T23:17:56.500",
       "contract": "accounting"
     },{
       "id": 27,
-      "hash": "60a44e14a5d4b621cb609770bb09483ff5a0bd359643f6ca4e77497f782c7972",
+      "hash": "885da6f3a86976109f57dcf2357a0499f6e04be0c6bfd12eb1ec5df410bd12df",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
@@ -750,7 +714,7 @@
             "label": "create_date",
             "value": [
               "time_point",
-              "2021-10-26T00:47:51.000"
+              "2021-12-14T23:17:56.500"
             ]
           },{
             "label": "balance_id",
@@ -758,27 +722,27 @@
               "int64",
               4
             ]
+          },{
+            "label": "number_of_updates",
+            "value": [
+              "int64",
+              0
+            ]
           }
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:51.000",
+      "created_date": "2021-12-14T23:17:56.500",
       "contract": "accounting"
     },{
       "id": 28,
-      "hash": "6d5b46e2d3ca592319e09192019859b42c5f88c7233de7f11a3bd2deda9756c3",
+      "hash": "97b3182eb34e3f6b653098288a6ad6616c6d0b208f29d8c155f5ddad6f85ac75",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
             "value": [
               "string",
               "details"
-            ]
-          },{
-            "label": "account_type",
-            "value": [
-              "int64",
-              1
             ]
           },{
             "label": "account_tag_type",
@@ -792,12 +756,6 @@
               "string",
               "000123"
             ]
-          },{
-            "label": "path",
-            "value": [
-              "string",
-              "Income > Sales"
-            ]
           }
         ],[{
             "label": "content_group_label",
@@ -821,11 +779,11 @@
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:52.000",
+      "created_date": "2021-12-14T23:17:57.500",
       "contract": "accounting"
     },{
       "id": 29,
-      "hash": "eca950af770662d35dc0d8720081bad926c90461273465541e273455f3eba908",
+      "hash": "121ae7e8da2582d9e765806f3f78ee1219a629aa0a48e5e7f147f1fe25bf9aa7",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
@@ -868,64 +826,17 @@
             "label": "account_fixed",
             "value": [
               "checksum256",
-              "6d5b46e2d3ca592319e09192019859b42c5f88c7233de7f11a3bd2deda9756c3"
+              "97b3182eb34e3f6b653098288a6ad6616c6d0b208f29d8c155f5ddad6f85ac75"
             ]
           }
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:52.000",
+      "created_date": "2021-12-14T23:17:57.500",
       "contract": "accounting"
     },{
-      "id": 31,
-      "hash": "abb1bf09affae9e92f9e7dfa1b2ca7ae2ab887a6b904d896c7437ee55eef502b",
-      "creator": "accounting",
-      "content_groups": [[{
-            "label": "content_group_label",
-            "value": [
-              "string",
-              "balances"
-            ]
-          }
-        ],[{
-            "label": "content_group_label",
-            "value": [
-              "string",
-              "system"
-            ]
-          },{
-            "label": "node_label",
-            "value": [
-              "string",
-              "balances"
-            ]
-          },{
-            "label": "type",
-            "value": [
-              "string",
-              "balances"
-            ]
-          },{
-            "label": "create_date",
-            "value": [
-              "time_point",
-              "2021-10-26T00:47:52.000"
-            ]
-          },{
-            "label": "balance_id",
-            "value": [
-              "int64",
-              5
-            ]
-          }
-        ]
-      ],
-      "certificates": [],
-      "created_date": "2021-10-26T00:47:52.000",
-      "contract": "accounting"
-    },{
-      "id": 33,
-      "hash": "658c6482d11f0870bd269e0b0eab50b6da68267fc37d519d487371de78c980b1",
+      "id": 35,
+      "hash": "9fa07fa9a25ffcefa7ef75f95594dde6c2ecacbc5d5f18ff9228fe081d9549c3",
       "creator": "accounting",
       "content_groups": [[{
             "label": "content_group_label",
@@ -956,7 +867,13 @@
             "label": "update_date",
             "value": [
               "time_point",
-              "2021-10-26T00:47:52.000"
+              "2021-12-14T23:17:58.500"
+            ]
+          },{
+            "label": "next_trx_id",
+            "value": [
+              "int64",
+              2
             ]
           }
         ],[{
@@ -1015,11 +932,538 @@
               "asset",
               "0.00 HUSD"
             ]
+          },{
+            "label": "allowed_currency",
+            "value": [
+              "asset",
+              "0.000 BTC"
+            ]
           }
         ]
       ],
       "certificates": [],
-      "created_date": "2021-10-26T00:47:53.500",
+      "created_date": "2021-12-14T23:17:58.500",
+      "contract": "accounting"
+    },{
+      "id": 36,
+      "hash": "edd6a8dce149c95edd13d4250614b08ee7dca2cf8f5341e2078d8134e57b7441",
+      "creator": "accounting",
+      "content_groups": [[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "account_USD",
+            "value": [
+              "asset",
+              "5000.00 USD"
+            ]
+          },{
+            "label": "global_USD",
+            "value": [
+              "asset",
+              "5000.00 USD"
+            ]
+          },{
+            "label": "number_of_updates",
+            "value": [
+              "int64",
+              1
+            ]
+          }
+        ],[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "system"
+            ]
+          },{
+            "label": "node_label",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "type",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "create_date",
+            "value": [
+              "time_point",
+              "2021-12-14T23:17:54.000"
+            ]
+          },{
+            "label": "balance_id",
+            "value": [
+              "int64",
+              2
+            ]
+          },{
+            "label": "number_of_updates",
+            "value": [
+              "int64",
+              0
+            ]
+          }
+        ]
+      ],
+      "certificates": [],
+      "created_date": "2021-12-14T23:17:58.500",
+      "contract": "accounting"
+    },{
+      "id": 37,
+      "hash": "e59e46790b13ae61e5cc0840675b01141f859f8883bd47719b0ed8bf2a09f24e",
+      "creator": "accounting",
+      "content_groups": [[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "global_USD",
+            "value": [
+              "asset",
+              "5000.00 USD"
+            ]
+          },{
+            "label": "number_of_updates",
+            "value": [
+              "int64",
+              1
+            ]
+          }
+        ],[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "system"
+            ]
+          },{
+            "label": "node_label",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "type",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "create_date",
+            "value": [
+              "time_point",
+              "2021-12-14T23:17:52.000"
+            ]
+          },{
+            "label": "balance_id",
+            "value": [
+              "int64",
+              0
+            ]
+          },{
+            "label": "number_of_updates",
+            "value": [
+              "int64",
+              0
+            ]
+          }
+        ]
+      ],
+      "certificates": [],
+      "created_date": "2021-12-14T23:17:58.500",
+      "contract": "accounting"
+    },{
+      "id": 38,
+      "hash": "70f8dca4b78f3a28f540bfb4e68250cb34acd3c35dcdbba9ce81824d22b45b41",
+      "creator": "accounting",
+      "content_groups": [[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "account_BTC",
+            "value": [
+              "asset",
+              "-1000.00 BTC"
+            ]
+          },{
+            "label": "global_BTC",
+            "value": [
+              "asset",
+              "-1000.00 BTC"
+            ]
+          },{
+            "label": "number_of_updates",
+            "value": [
+              "int64",
+              1
+            ]
+          }
+        ],[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "system"
+            ]
+          },{
+            "label": "node_label",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "type",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "create_date",
+            "value": [
+              "time_point",
+              "2021-12-14T23:17:57.500"
+            ]
+          },{
+            "label": "balance_id",
+            "value": [
+              "int64",
+              5
+            ]
+          },{
+            "label": "number_of_updates",
+            "value": [
+              "int64",
+              0
+            ]
+          }
+        ]
+      ],
+      "certificates": [],
+      "created_date": "2021-12-14T23:17:58.500",
+      "contract": "accounting"
+    },{
+      "id": 39,
+      "hash": "3430dd5d075e285fc5dd212e7c100b4ad130337f857c3cffb0a70a1a451e8660",
+      "creator": "accounting",
+      "content_groups": [[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "global_BTC",
+            "value": [
+              "asset",
+              "-1000.00 BTC"
+            ]
+          },{
+            "label": "number_of_updates",
+            "value": [
+              "int64",
+              1
+            ]
+          }
+        ],[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "system"
+            ]
+          },{
+            "label": "node_label",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "type",
+            "value": [
+              "string",
+              "balances"
+            ]
+          },{
+            "label": "create_date",
+            "value": [
+              "time_point",
+              "2021-12-14T23:17:53.000"
+            ]
+          },{
+            "label": "balance_id",
+            "value": [
+              "int64",
+              1
+            ]
+          },{
+            "label": "number_of_updates",
+            "value": [
+              "int64",
+              0
+            ]
+          }
+        ]
+      ],
+      "certificates": [],
+      "created_date": "2021-12-14T23:17:58.500",
+      "contract": "accounting"
+    },{
+      "id": 40,
+      "hash": "de39b164d83b9d7049135ed0db991e9b5312969be73610ad6ca0f41c4be94809",
+      "creator": "authacct1111",
+      "content_groups": [[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "details"
+            ]
+          },{
+            "label": "trx_date",
+            "value": [
+              "time_point",
+              "2020-12-17T21:45:11.500"
+            ]
+          },{
+            "label": "trx_ledger",
+            "value": [
+              "checksum256",
+              "4c807227a2c9d7ebe5b22050f6d3f0d4318fcb57904e19e18746ae0309024481"
+            ]
+          },{
+            "label": "trx_memo",
+            "value": [
+              "string",
+              "Test transaction"
+            ]
+          },{
+            "label": "trx_name",
+            "value": [
+              "string",
+              "transaction name"
+            ]
+          },{
+            "label": "id",
+            "value": [
+              "int64",
+              1
+            ]
+          },{
+            "label": "approved_by",
+            "value": [
+              "name",
+              "authacct1111"
+            ]
+          },{
+            "label": "currency_conversion",
+            "value": [
+              "int64",
+              1
+            ]
+          },{
+            "label": "conversion_precision",
+            "value": [
+              "int64",
+              8
+            ]
+          },{
+            "label": "USD/BTC",
+            "value": [
+              "string",
+              "500000000"
+            ]
+          },{
+            "label": "BTC/USD",
+            "value": [
+              "string",
+              "20000000"
+            ]
+          }
+        ],[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "system"
+            ]
+          },{
+            "label": "node_label",
+            "value": [
+              "string",
+              "Transaction"
+            ]
+          },{
+            "label": "type",
+            "value": [
+              "string",
+              "transaction"
+            ]
+          }
+        ]
+      ],
+      "certificates": [],
+      "created_date": "2021-12-14T23:17:58.500",
+      "contract": "accounting"
+    },{
+      "id": 41,
+      "hash": "dfdb9c2d31df891af5d8a5064894376d747e5008bb1903fae8a93372582613e8",
+      "creator": "authacct1111",
+      "content_groups": [[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "details"
+            ]
+          },{
+            "label": "account",
+            "value": [
+              "checksum256",
+              "17e8e5444d46c1323083d7808329e76bea66eaadeea432368827bd504fb0968b"
+            ]
+          },{
+            "label": "create_date",
+            "value": [
+              "time_point",
+              "2021-12-14T23:17:58.500"
+            ]
+          },{
+            "label": "memo",
+            "value": [
+              "string",
+              "Test component"
+            ]
+          },{
+            "label": "from",
+            "value": [
+              "string",
+              "test_from"
+            ]
+          },{
+            "label": "to",
+            "value": [
+              "string",
+              "test_to"
+            ]
+          },{
+            "label": "type",
+            "value": [
+              "string",
+              "DEBIT"
+            ]
+          },{
+            "label": "amount",
+            "value": [
+              "asset",
+              "5000.00 USD"
+            ]
+          }
+        ],[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "system"
+            ]
+          },{
+            "label": "node_label",
+            "value": [
+              "string",
+              "Component"
+            ]
+          },{
+            "label": "type",
+            "value": [
+              "string",
+              "component"
+            ]
+          }
+        ]
+      ],
+      "certificates": [],
+      "created_date": "2021-12-14T23:17:58.500",
+      "contract": "accounting"
+    },{
+      "id": 42,
+      "hash": "d214a4729e7199a52530d98622be3101745333d0102be84429c9a4d866a45b0c",
+      "creator": "authacct1111",
+      "content_groups": [[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "details"
+            ]
+          },{
+            "label": "account",
+            "value": [
+              "checksum256",
+              "97b3182eb34e3f6b653098288a6ad6616c6d0b208f29d8c155f5ddad6f85ac75"
+            ]
+          },{
+            "label": "create_date",
+            "value": [
+              "time_point",
+              "2021-12-14T23:17:58.500"
+            ]
+          },{
+            "label": "memo",
+            "value": [
+              "string",
+              "Test component"
+            ]
+          },{
+            "label": "from",
+            "value": [
+              "string",
+              "test_from"
+            ]
+          },{
+            "label": "to",
+            "value": [
+              "string",
+              "test_to"
+            ]
+          },{
+            "label": "type",
+            "value": [
+              "string",
+              "CREDIT"
+            ]
+          },{
+            "label": "amount",
+            "value": [
+              "asset",
+              "1000.00 BTC"
+            ]
+          }
+        ],[{
+            "label": "content_group_label",
+            "value": [
+              "string",
+              "system"
+            ]
+          },{
+            "label": "node_label",
+            "value": [
+              "string",
+              "Component"
+            ]
+          },{
+            "label": "type",
+            "value": [
+              "string",
+              "component"
+            ]
+          }
+        ]
+      ],
+      "certificates": [],
+      "created_date": "2021-12-14T23:17:58.500",
       "contract": "accounting"
     }
   ],

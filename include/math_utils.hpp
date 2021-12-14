@@ -33,5 +33,12 @@ namespace hypha {
       return res1 + res2;
     }
 
+    static double
+    asset2double(const eosio::asset & quantity)
+    {
+      double amount = quantity.amount;
+      return amount / double(integerPow(10, quantity.symbol.precision()));
+    }
+
   }
 }

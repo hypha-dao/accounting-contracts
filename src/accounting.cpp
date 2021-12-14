@@ -257,8 +257,14 @@ accounting::hasAssociatedComponents(const checksum256 & account_hash)
 }
 
 
-ACTION
-accounting::upserttrx(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve)
+void 
+accounting::upsertTransaction(
+  const name & issuer, 
+  const checksum256 & trx_hash, 
+  ContentGroups & trx_info, 
+  bool approve,
+  const name & type
+)
 {
   TRACE_FUNCTION()
 
@@ -268,7 +274,7 @@ accounting::upserttrx(const name & issuer, const checksum256 & trx_hash, Content
   checksum256 nullHash;
   
   if (trx_hash == nullHash) {
-    createTransaction(issuer, uint64_t(0), trx_info, approve);
+    createTransaction(issuer, uint64_t(0), trx_info, approve, type);
   } else {
     EOS_CHECK(
       !isApproved(trx_hash),
@@ -281,8 +287,23 @@ accounting::upserttrx(const name & issuer, const checksum256 & trx_hash, Content
     int64_t trxId = cw.getOrFail(DETAILS, TRX_ID)->getAs<int64_t>();
 
     deleteTransaction(trx_hash);
-    createTransaction(issuer, trxId, trx_info, approve);
+    createTransaction(issuer, trxId, trx_info, approve, type);
   }
+}
+
+
+ACTION
+accounting::upserttrx(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve)
+{
+  TRACE_FUNCTION()
+  upsertTransaction(issuer, trx_hash, trx_info, approve, name("normal"));
+}
+
+ACTION
+accounting::crryconvtrx(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve)
+{
+  TRACE_FUNCTION()
+  upsertTransaction(issuer, trx_hash, trx_info, approve, name("crryconv"));
 }
 
 ACTION
@@ -296,41 +317,10 @@ accounting::deletetrx(const name & deleter, const checksum256 & trx_hash)
   deleteTransaction(trx_hash);
 }
 
+
 void
-accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups & trx_info, bool approve)
+accounting::saveComponents(const name & issuer, const checksum256 & trx_hash, const Transaction & trx)
 {
-  TRACE_FUNCTION()
-
-  if (trxId == 0) {
-    Settings& settings = Settings::instance();
-    trxId = settings.getOrDefault("next_trx_id", int64_t(1));
-    settings.addOrReplace("next_trx_id", trxId + 1);
-  }
-
-  ContentWrapper cw(trx_info);
-  ContentGroup & detailsGroup = *cw.getGroupOrFail(DETAILS);
-
-  ContentWrapper::insertOrReplace(detailsGroup, Content{ TRX_ID, trxId });
-
-  Transaction trx(trx_info);
-
-  if (approve) {
-    trx.checkBalanced();
-
-    ContentWrapper::insertOrReplace(detailsGroup, Content{ TRX_APPROVER, issuer });
-
-    for (auto & component : trx.getComponents()) {
-      changeAcctBalanceRecursively(
-        component.account, 
-        trx.getLedger(), 
-        ((component.type == CREDIT_TAG_TYPE) ? -1 : 1) * component.amount, 
-        false
-      );
-    }
-  }
-
-  Document trxDoc(get_self(), issuer, { detailsGroup, getSystemGroup(TRX_LABEL, TRX_TYPE) });
-
   const std::vector<uint64_t> & allowed_currencies = getAllowedCurrencies();
   std::string true_string = "true";
 
@@ -360,7 +350,7 @@ accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups 
       getSystemGroup(COMPONENT_LABEL, COMPONENT_TYPE) 
     });
 
-    parent(issuer, trxDoc.getHash(), compntDoc.getHash(), COMPONENT_TYPE, TRX_TYPE);
+    parent(issuer, trx_hash, compntDoc.getHash(), COMPONENT_TYPE, TRX_TYPE);
 
     if (compnt.event) {
       bindevent(issuer, *compnt.event, compntDoc.getHash());
@@ -368,6 +358,83 @@ accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups 
 
     parent(issuer, compnt.account, compntDoc.getHash(), ACCOUNT_COMPONENT_EDGE, COMPONENT_ACCOUNT_EDGE);
   }
+}
+
+void
+accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups & trx_info, bool approve, const name & type)
+{
+  TRACE_FUNCTION()
+
+  if (trxId == 0) {
+    Settings& settings = Settings::instance();
+    trxId = settings.getOrDefault("next_trx_id", int64_t(1));
+    settings.addOrReplace("next_trx_id", trxId + 1);
+  }
+
+  ContentWrapper cw(trx_info);
+  ContentGroup & detailsGroup = *cw.getGroupOrFail(DETAILS);
+
+  ContentWrapper::insertOrReplace(detailsGroup, Content{ TRX_ID, trxId });
+
+  Transaction trx(trx_info);
+
+  if (approve) {
+    if (type == name("normal")) trx.checkBalanced();
+
+    ContentWrapper::insertOrReplace(detailsGroup, Content{ TRX_APPROVER, issuer });
+
+    for (auto & component : trx.getComponents()) {
+      changeAcctBalanceRecursively(
+        component.account, 
+        trx.getLedger(), 
+        ((component.type == CREDIT_TAG_TYPE) ? -1 : 1) * component.amount, 
+        false
+      );
+    }
+  }
+
+  if (type == name("crryconv")) {
+    auto components = trx.getComponents();
+
+    EOS_CHECK(
+      components.size() == 2,
+      util::to_str("a currency conversion must have 2 components")
+    )
+
+    std::vector<std::pair<string, double>> convertedComponents;
+
+    for (auto & compnt : components) {
+      convertedComponents.push_back(make_pair(
+        compnt.amount.symbol.code().to_string(),
+        util::asset2double(compnt.amount)
+      ));
+    }
+
+    ContentWrapper::insertOrReplace(detailsGroup, Content{ "currency_conversion", int64_t(1) });
+    ContentWrapper::insertOrReplace(detailsGroup, Content{ "conversion_precision", int64_t(8) });
+
+    auto from = convertedComponents[0];
+    auto to = convertedComponents[1];
+
+    EOS_CHECK(
+      from.first != to.first,
+      util::to_str("a currency conversion must use 2 different currencies, provided only ", from.first)
+    )
+
+    ContentWrapper::insertOrReplace(detailsGroup, Content{ 
+      util::to_str(from.first, "/", to.first), 
+      std::to_string(int64_t((from.second / to.second) * 100000000))
+    });
+
+    ContentWrapper::insertOrReplace(detailsGroup, Content{ 
+      util::to_str(to.first, "/", from.first), 
+      std::to_string(int64_t((to.second / from.second) * 100000000))
+    });
+  }
+
+  Document trxDoc(get_self(), issuer, { detailsGroup, getSystemGroup(TRX_LABEL, TRX_TYPE) });
+
+  saveComponents(issuer, trxDoc.getHash(), trx);
 
   auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
   auto bucketHash = ledgerToTrxBucket.getToNode();
