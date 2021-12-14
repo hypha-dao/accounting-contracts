@@ -366,7 +366,7 @@ accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups 
       bindevent(issuer, *compnt.event, compntDoc.getHash());
     }
 
-    Edge compntToAcc(get_self(), issuer, compntDoc.getHash(), compnt.account, name(COMPONENT_ACCOUNT_EDGE));
+    parent(issuer, compnt.account, compntDoc.getHash(), ACCOUNT_COMPONENT_EDGE, COMPONENT_ACCOUNT_EDGE);
   }
 
   auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));

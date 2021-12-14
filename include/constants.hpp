@@ -23,6 +23,7 @@ constexpr auto IS_LEAF = "is_leaf";
 constexpr auto ACCOUNT_EDGE = "account";
 constexpr auto ACCOUNT_VARIABLE = "accountv";
 constexpr auto COMPONENT_ACCOUNT_EDGE = "cmpacct";
+constexpr auto ACCOUNT_COMPONENT_EDGE = "acctcmp";
 constexpr auto DEBIT_TAG_TYPE = "DEBIT";
 constexpr auto CREDIT_TAG_TYPE = "CREDIT";
 constexpr auto PARENT_ACCOUNT = "parent_account";
