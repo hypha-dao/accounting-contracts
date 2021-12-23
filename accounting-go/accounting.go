@@ -76,6 +76,12 @@ type addCurrency struct {
 	Currency eos.Symbol `json:"currency"`
 }
 
+type addCoinid struct {
+	Issuer eos.AccountName `json:"issuer"`
+	Currency eos.Symbol `json:"currency"`
+	Id string `json:"id"`
+}
+
 type remCurrency struct {
 	Authorizer eos.AccountName `json:"authorizer"`
 	Currency eos.Symbol `json:"currency"`
@@ -435,6 +441,33 @@ func AddCurrency(ctx context.Context, api *eos.API, contract eos.AccountName, is
 
 }
 
+func AddCoinId(ctx context.Context, api *eos.API, contract eos.AccountName, issuer eos.AccountName, currency, id string) (string, error) {
+
+	symbol, err := eos.StringToSymbol(currency)
+
+	if err != nil {
+		return "error", fmt.Errorf("error removing currency: %s", err)
+	}
+
+	fmt.Println("Updating coin id: ", currency)
+
+	actions := []*eos.Action{{
+		Account: contract,
+		Name: eos.ActN("addcoinid"),
+		Authorization: []eos.PermissionLevel {
+			{ Actor: issuer, Permission: eos.PN("active") },
+		},
+		ActionData: eos.NewActionData(addCoinid {
+			Issuer: issuer,
+			Currency: symbol,
+			Id: id,
+		}),
+	}}
+
+	return eostest.ExecTrx(ctx, api, actions)
+
+}
+
 func RemoveCurrency(ctx context.Context, api *eos.API, contract eos.AccountName, authorizer eos.AccountName, currency string) (string, error) {
 
 	symbol, err := eos.StringToSymbol(currency)
@@ -762,6 +795,39 @@ func GetAllowedCurrencies (ctx context.Context, api *eos.API, contract eos.Accou
 	}
 
 	return allowedCurrencies, nil
+}
+
+func GetCoinIds (ctx context.Context, api *eos.API, contract eos.AccountName) ([]string, error) {
+
+	settingsDoc, err := docgraph.GetLastDocumentOfEdge(ctx, api, contract, "settings")
+
+	if err != nil {
+		return []string{}, err
+	}
+
+	allowedCurrenciesGroup, err := settingsDoc.GetContentGroup("allowed_currencies")
+
+	if err != nil {
+		return []string{}, err
+	}
+
+	var allowedCurrencies []string
+
+	for _, c := range *allowedCurrenciesGroup {
+
+		if strings.Contains(c.Label, "_ID") {
+			coinId := c.Value.String()
+
+			if err != nil {
+				return []string{}, err
+			}
+
+			allowedCurrencies = append(allowedCurrencies, coinId)
+		}
+	}
+
+	return allowedCurrencies, nil
+
 }
 
 

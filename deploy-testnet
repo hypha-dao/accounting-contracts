@@ -41,6 +41,9 @@ TRUSTED ACCOUNT
 
 ./cleos -u https://testnet.telos.caleos.io push action gh.hypha addtrustacnt '["sebastianmb2"]' -p gh.hypha@active
 
+./cleos -u https://testnet.telos.caleos.io push action gh.hypha addtrustacnt '["jmgayosso155"]' -p gh.hypha@active
+
+
 
 ===============================================================
 

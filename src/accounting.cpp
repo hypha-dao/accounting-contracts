@@ -319,7 +319,7 @@ accounting::deletetrx(const name & deleter, const checksum256 & trx_hash)
 
 
 void
-accounting::saveComponents(const name & issuer, const checksum256 & trx_hash, const Transaction & trx)
+accounting::saveComponents(const name & issuer, const checksum256 & trx_hash, const Transaction & trx, bool approved)
 {
   const std::vector<uint64_t> & allowed_currencies = getAllowedCurrencies();
   std::string true_string = "true";
@@ -356,7 +356,9 @@ accounting::saveComponents(const name & issuer, const checksum256 & trx_hash, co
       bindevent(issuer, *compnt.event, compntDoc.getHash());
     }
 
-    parent(issuer, compnt.account, compntDoc.getHash(), ACCOUNT_COMPONENT_EDGE, COMPONENT_ACCOUNT_EDGE);
+    if (approved) {
+      parent(issuer, compnt.account, compntDoc.getHash(), ACCOUNT_COMPONENT_EDGE, COMPONENT_ACCOUNT_EDGE);
+    }
   }
 }
 
@@ -433,7 +435,7 @@ accounting::createTransaction(const name & issuer, int64_t trxId, ContentGroups 
 
   Document trxDoc(get_self(), issuer, { detailsGroup, getSystemGroup(TRX_LABEL, TRX_TYPE) });
 
-  saveComponents(issuer, trxDoc.getHash(), trx);
+  saveComponents(issuer, trxDoc.getHash(), trx, approve);
 
   auto ledgerToTrxBucket = Edge::get(get_self(), trx.getLedger(), name(TRX_BUCKET_EDGE));
   auto bucketHash = ledgerToTrxBucket.getToNode();
@@ -649,6 +651,35 @@ accounting::addcurrency(const name & issuer, symbol & currency_symbol)
 }
 
 ACTION
+accounting::addcoinid(const name & issuer, const symbol & currency_symbol, const std::string & id)
+{
+  TRACE_FUNCTION()
+
+  require_auth(issuer);
+  requireTrusted(issuer);
+
+  Settings & settings = Settings::instance();
+  ContentWrapper settingsCW = settings.getWrapper();
+
+  auto [cgIdx, currenciesGroup] = settingsCW.getGroup(ALLOWED_CURRENCIES_GROUP);
+
+  int i = 0;
+
+  for (auto itr = currenciesGroup->begin(); itr != currenciesGroup->end(); itr++) {
+    if (itr->label == ALLOWED_CURRENCIES_LABEL) {
+      uint64_t allowed_asset_code = (itr->getAs<asset>()).symbol.code().raw();
+      if (allowed_asset_code == currency_symbol.code().raw()) {
+        settings.add(util::to_str(currency_symbol.code().to_string(), "_ID"), id, ALLOWED_CURRENCIES_GROUP);
+        return;
+      }
+    }
+    i++;
+  }
+
+  EOS_CHECK(false, util::to_str("There is no allowed currency with code ", currency_symbol.code(), "."))
+}
+
+ACTION
 accounting::remcurrency(const name & authorizer, const symbol & currency_symbol)
 {
   TRACE_FUNCTION()
@@ -705,36 +736,6 @@ accounting::clearevent(int64_t max_removable_trx)
 
   while (it != cursorsTbl.end() && maxToRemove--) {
     it = cursorsTbl.erase(it);
-  }
-}
-
-
-ACTION
-accounting::addexchrates(std::vector<exchange_rate_entry> exchange_rates)
-{
-  require_auth(get_self());
-
-  std::vector<uint64_t> allowed_currencies = getAllowedCurrencies();
-
-  for (auto & entry : exchange_rates)
-  {
-    // validate here that the currency exists
-    EOS_CHECK(
-      isAllowedCurrency(eosio::symbol(entry.from, 4), allowed_currencies),
-      util::to_str("from currency ", entry.from, " is not an allowed currency")
-    )
-    EOS_CHECK(
-      isAllowedCurrency(eosio::symbol(entry.to, 4), allowed_currencies),
-      util::to_str("to currency ", entry.to, " is not an allowed currency")
-    )
-
-    exchange_rates_table exrates_t(get_self(), entry.from.raw());
-    exrates_t.emplace(_self, [&](auto & item){
-      item.id = exrates_t.available_primary_key();
-      item.date = entry.date;
-      item.to = entry.to;
-      item.rate = entry.exrate / 100000000.0;
-    });
   }
 }
 

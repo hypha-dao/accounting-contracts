@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 	"strings"
+	"reflect"
 
 	"github.com/eoscanada/eos-go"
 	"github.com/hypha-dao/accounting-go"
@@ -469,6 +470,9 @@ func TestCreateacc(t *testing.T) {
 		expensesAcc, err := CreateAccount(t, env, account_expenses, ledgerDoc.Hash, ledgerDoc.Hash)
 		assert.NilError(t, err)
 
+		salaryAcc, err := CreateAccount(t, env, account_salary, ledgerDoc.Hash, ledgerDoc.Hash)
+		assert.NilError(t, err)
+
 		usd2Symbol, _ := eos.StringToSymbol("2,USD")
 	
 		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "2,USD")
@@ -481,11 +485,17 @@ func TestCreateacc(t *testing.T) {
 				"DEBIT",
 				nil,
 			},
+			accounting.TrxComponent{
+				salaryAcc.Hash.String(), 
+				eos.Asset{ Amount: 100000, Symbol: usd2Symbol },
+				"CREDIT",
+				nil,
+			},
 		}, &ledgerDoc)
 
 		assert.NilError(t, err)
 
-		_, err = accounting.Upserttrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, make([]byte, 0), trxDoc.ContentGroups, false)
+		_, err = accounting.Upserttrx(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, make([]byte, 0), trxDoc.ContentGroups, true)
 		assert.NilError(t, err)
 
 		_, err = CreateAccount(t, env, account_development, expensesAcc.Hash, ledgerDoc.Hash)
@@ -761,6 +771,48 @@ func TestAddcurrency(t *testing.T) {
 			[]string{ "USD", "BTC", "ETH", "HUSD", "WAX", "SEEDS", "TLOS", "EOS" },
 			allowedCurrenciesOnChain,
 		))
+
+	})
+
+}
+
+func TestAddcoinid(t *testing.T) {
+
+	t.Run("An authorized account can add an id to an allowed currency", func(t *testing.T) {
+
+		// Arrange
+		teardownTestCase := setupTestCase(t)
+		defer teardownTestCase(t)	
+
+		env := SetupEnvironment(t)
+
+		_, err := accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "1,USD")
+		assert.NilError(t, err)
+
+		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "2,BTC")
+		assert.NilError(t, err)
+
+		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "2,ETH")
+		assert.NilError(t, err)
+
+		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "3,HUSD")
+		assert.NilError(t, err)
+
+		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "5,SEEDS")
+		assert.NilError(t, err)
+
+		// Act
+		_, err = accounting.AddCoinId(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "5,BTC", "bitcoin")
+		_, err = accounting.AddCoinId(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "5,BTC", "ethereum")
+		
+
+		// Assert
+		assert.NilError(t, err)
+
+		allowedCurrenciesOnChain, err := accounting.GetCoinIds(env.ctx, &env.api, env.Accounting)
+		assert.NilError(t, err)
+
+		assert.Assert(t, reflect.DeepEqual(allowedCurrenciesOnChain, []string{ "bitcoin", "ethereum", })  )
 
 	})
 
@@ -2073,123 +2125,3 @@ func TestCrryconvtrx(t *testing.T) {
 	})
 
 }
-
-func TestAddexchrates(t *testing.T) {
-
-	t.Run("Contract admin can add currency exchange rates if the currency is allowed", func(t *testing.T) {
-
-		// Arrange
-		teardownTestCase := setupTestCase(t)
-		defer teardownTestCase(t)	
-	
-		env := SetupEnvironment(t)
-
-		_, err := accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "1,USD")
-		assert.NilError(t, err)
-
-		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "2,BTC")
-		assert.NilError(t, err)
-
-		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "2,ETH")
-		assert.NilError(t, err)
-
-		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "3,HUSD")
-		assert.NilError(t, err)
-
-		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "4,WAX")
-		assert.NilError(t, err)
-
-		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "5,SEEDS")
-		assert.NilError(t, err)
-
-		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "6,TLOS")
-		assert.NilError(t, err)
-
-		_, err = accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "7,EOS")
-		assert.NilError(t, err)
-
-
-		date := time.Now().UnixNano() / 1000
-
-		exchangeRates := []accounting.ExRateEntry{
-			CreateExchangeRateEntry("BTC", "USD", eos.Int64(20010000), eos.TimePoint(date), t),
-			CreateExchangeRateEntry("TLOS", "USD", eos.Int64(440010000), eos.TimePoint(date), t),
-			CreateExchangeRateEntry("EOS", "USD", eos.Int64(30010000), eos.TimePoint(date), t),
-		}
-
-		// Act
-		_, err = accounting.AddExchRates(env.ctx, &env.api, env.Accounting, exchangeRates)
-
-
-		// Assert
-		assert.NilError(t, err)
-
-		rows, err := accounting.GetExchangeRates(env.ctx, &env.api, env.Accounting, "BTC", "USD")
-		assert.NilError(t, err)
-		assert.Assert(t, rows[0].ToCurrency == "USD")
-		assert.Assert(t, rows[0].Rate == 0.2001)
-
-		rows2, err := accounting.GetExchangeRates(env.ctx, &env.api, env.Accounting, "TLOS", "USD")
-		assert.NilError(t, err)
-		assert.Assert(t, rows2[0].ToCurrency == "USD")
-		assert.Assert(t, rows2[0].Rate == 4.4001)
-
-		rows3, err := accounting.GetExchangeRates(env.ctx, &env.api, env.Accounting, "EOS", "USD")
-		assert.NilError(t, err)
-		assert.Assert(t, rows3[0].ToCurrency == "USD")
-		assert.Assert(t, rows3[0].Rate == 0.3001)
-
-	})
-
-	t.Run("If from currency exchange rate is not in allowed currencies, the action fails", func (t *testing.T) {
-
-		// Arrange
-		teardownTestCase := setupTestCase(t)
-		defer teardownTestCase(t)	
-	
-		env := SetupEnvironment(t)
-
-		_, err := accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "1,USD")
-		assert.NilError(t, err)
-
-		date := time.Now().UnixNano() / 1000
-
-		exchangeRates := []accounting.ExRateEntry{
-			CreateExchangeRateEntry("BTC", "USD", eos.Int64(20010000), eos.TimePoint(date), t),
-		}
-
-		// Act
-		_, err = accounting.AddExchRates(env.ctx, &env.api, env.Accounting, exchangeRates)
-
-		// Assert
-		assert.ErrorContains(t, err, "from currency BTC is not an allowed currency")
-
-	})
-
-	t.Run("If to currency exchange rate is not in allowed currencies, the action fails", func (t *testing.T) {
-
-		// Arrange
-		teardownTestCase := setupTestCase(t)
-		defer teardownTestCase(t)	
-	
-		env := SetupEnvironment(t)
-
-		_, err := accounting.AddCurrency(env.ctx, &env.api, env.Accounting, env.AuthorizedAccount1, "1,BTC")
-		assert.NilError(t, err)
-
-		date := time.Now().UnixNano() / 1000
-
-		exchangeRates := []accounting.ExRateEntry{
-			CreateExchangeRateEntry("BTC", "USD", eos.Int64(20010000), eos.TimePoint(date), t),
-		}
-
-		// Act
-		_, err = accounting.AddExchRates(env.ctx, &env.api, env.Accounting, exchangeRates)
-
-		// Assert
-		assert.ErrorContains(t, err, "to currency USD is not an allowed currency")
-
-	})
-
-}
-

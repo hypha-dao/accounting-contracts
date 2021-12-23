@@ -1,1 +1,11 @@
 ./cleos get table accounting accounting documents --limit 1000 > ~/Documents/hypha/accounting-contracts/documents
+
+
+
+./cleos -u https://api-test.telosfoundation.io get table gh.hypha gh.hypha edges --limit 1000 > ~/Documents/hypha/accounting-contracts/edges
+
+
+./cleos -u https://api-test.telosfoundation.io get table gh.hypha gh.hypha documents --limit 1000 > ~/Documents/hypha/accounting-contracts/documents
+
+
+

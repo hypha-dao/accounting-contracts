@@ -32,13 +32,6 @@ enum E
 };
 }
 
-struct exchange_rate_entry {
-  eosio::symbol_code from;
-  eosio::symbol_code to;
-  eosio::time_point date;
-  int64_t exrate;
-};
-
 CONTRACT accounting : public contract {
  public:
   //using contract::contract;
@@ -119,6 +112,9 @@ CONTRACT accounting : public contract {
   addcurrency(const name & updater, symbol & currency_symbol);
 
   ACTION
+  addcoinid(const name & issuer, const symbol & currency_symbol, const std::string & id);
+
+  ACTION
   remcurrency(const name & authorizer, const symbol & currency_symbol);
 
   ACTION
@@ -132,9 +128,6 @@ CONTRACT accounting : public contract {
 
   ACTION
   clearevent(int64_t max_removable_trx);
-
-  ACTION
-  addexchrates(std::vector<exchange_rate_entry> exchange_rates);
 
   ACTION
   clean(ContentGroups& tables);
@@ -165,7 +158,7 @@ CONTRACT accounting : public contract {
   upsertTransaction(const name & issuer, const checksum256 & trx_hash, ContentGroups & trx_info, bool approve,const name & type);
 
   void
-  saveComponents(const name & issuer, const checksum256 & trx_hash, const Transaction & trx);
+  saveComponents(const name & issuer, const checksum256 & trx_hash, const Transaction & trx, bool approved);
 
   void
   createTransaction(const name & issuer, int64_t trxId, ContentGroups & trx_info, bool approve, const name & type);
