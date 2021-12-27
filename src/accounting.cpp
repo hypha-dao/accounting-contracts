@@ -359,6 +359,9 @@ accounting::saveComponents(const name & issuer, const checksum256 & trx_hash, co
     if (approved) {
       parent(issuer, compnt.account, compntDoc.getHash(), ACCOUNT_COMPONENT_EDGE, COMPONENT_ACCOUNT_EDGE);
     }
+    else {
+      Edge(get_self(), issuer, compntDoc.getHash(), compnt.account, name(COMPONENT_ACCOUNT_EDGE));
+    }
   }
 }
 
