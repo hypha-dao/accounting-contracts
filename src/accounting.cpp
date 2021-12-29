@@ -131,6 +131,8 @@ accounting::createacc(const name & creator, ContentGroups & account_info)
     getSystemGroup(accountName.c_str(), "account"),
   });
 
+  insertAccountCode(accountCode);
+
   auto accountVSystemGroup = getSystemGroup(accountName.c_str(), "account_v");
   accountVSystemGroup.push_back(Content{ "account_fixed", account.getHash() });
 
@@ -931,6 +933,54 @@ accounting::getRoot()
                                                getRootContentGroups());
   
   return rootDoc;
+}
+
+Document &
+accounting::getAccountCodes()
+{
+  TRACE_FUNCTION()
+
+  auto root = getRoot();
+  
+  static Document accountCodes;
+
+  if (auto [exists, edge] = Edge::getIfExists(getName(), root.getHash(), ACCOUNT_CODES_EDGE); exists) {
+    accountCodes = Document(getName(), edge.to_node);
+  }
+  else {
+    accountCodes = Document(getName(), getName(), {
+      ContentGroup {
+        Content{ CONTENT_GROUP_LABEL, DETAILS },
+        Content{ ROOT_NODE, getRoot().getHash() }
+      },
+      getSystemGroup("accountcodes", "accountcodes")
+    });
+
+    Edge(getName(), getName(), root.getHash(), accountCodes.getHash(), ACCOUNT_CODES_EDGE);
+  }
+
+  return accountCodes;
+}
+
+void
+accounting::insertAccountCode(const std::string accountCode)
+{
+  TRACE_FUNCTION()
+
+  auto accountCodes = getAccountCodes();
+  ContentWrapper cw = accountCodes.getContentWrapper();
+
+  if (auto [idx, group] = cw.getGroup(DETAILS); group) {
+    for (auto content = group->begin() + 1; content != group->end(); content++) {
+      if (content->label == std::string("ACCOUNT_CODE")) {
+        auto code = content->getAs<std::string>();
+        check(code != accountCode, util::to_str("account code ", accountCode, " already exists").c_str());
+      }
+    }
+
+    ContentWrapper::insertOrReplace(*group, Content{ std::string("ACCOUNT_CODE"), accountCode });
+    m_documentGraph.updateDocument(get_self(), accountCodes.getHash(), cw.getContentGroups());
+  }
 }
 
 name

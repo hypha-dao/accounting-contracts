@@ -59,6 +59,7 @@ constexpr auto TRUSTED_ACCOUNT_LABEL = "trusted_account";
 constexpr auto ALLOWED_CURRENCIES_GROUP = "allowed_currencies";
 constexpr auto ALLOWED_CURRENCIES_LABEL = "allowed_currency";
 constexpr auto SETTINGS_EDGE = name("settings");
+constexpr auto ACCOUNT_CODES_EDGE = name("acctcodes");
 constexpr auto TRX_BUCKET_LABEL = "Transactions Bucket";
 constexpr auto TRX_BUCKET_EDGE = "trxbucket";
 constexpr auto EVENT_BUCKET_EDGE = "eventbucket";

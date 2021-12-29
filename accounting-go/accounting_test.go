@@ -501,7 +501,38 @@ func TestCreateacc(t *testing.T) {
 		_, err = CreateAccount(t, env, account_development, expensesAcc.Hash, ledgerDoc.Hash)
 		assert.ErrorContains(t, err, "Parent account already has associated components. Parent hash: " + expensesAcc.Hash.String())
 
-	}) 
+	})
+
+	t.Run("Account codes must be unique", func(t *testing.T) {
+
+		// Arrange
+		teardownTestCase := setupTestCase(t)
+		defer teardownTestCase(t)	
+
+		env := SetupEnvironment(t)
+
+		ledgerHashStr := CreateTestLedger(env, t)
+
+		pause(t, time.Second, "", "")
+	
+		ledgerDoc, err := docgraph.LoadDocument(env.ctx, &env.api, env.Accounting, ledgerHashStr)
+		assert.NilError(t, err)
+	
+		fmt.Println("Ledger HASH:", ledgerDoc.Hash)
+	
+		accountData := account_mkting_variant_code
+		accountData = strings.Replace(accountData, "<account_code>", "000114", 1)
+
+		_, err = CreateAccount(t, env, accountData, ledgerDoc.Hash, ledgerDoc.Hash)
+		assert.NilError(t, err)
+		
+		// Act
+		_, err = CreateAccount(t, env, account_expenses, ledgerDoc.Hash, ledgerDoc.Hash)
+
+		// Assert
+		assert.ErrorContains(t, err, "account code 000114 already exists")
+
+	})
 
 }
 

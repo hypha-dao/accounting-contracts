@@ -172,6 +172,12 @@ CONTRACT accounting : public contract {
   checksum256
   getEventBucket();
 
+  Document &
+  getAccountCodes();
+
+  void
+  insertAccountCode(const std::string accountCode);
+
 
  private:
 
